@@ -34,8 +34,8 @@ The `finance_dl.usbank` scraper uses `selenium` and `chromedriver` to log into t
   The earliest date for which to retrieve transactions, specified as a date string (e.g. `'2019-01-01'`). When specified, `max_history_days` has no effect.
 </ParamField>
 
-<ParamField path="max_history_days" type="int" default="1460">
-  Number of days of history to retrieve, counting back from the previous UTC day. Only used when `earliest_history_date` is not set. Defaults to `365 * 4` (approximately four years).
+<ParamField path="max_history_days" type="int" default="30">
+  Number of days of history to retrieve, counting back from the previous UTC day. Only used when `earliest_history_date` is not set. Defaults to `30`.
 </ParamField>
 
 <ParamField path="profile_dir" type="string">

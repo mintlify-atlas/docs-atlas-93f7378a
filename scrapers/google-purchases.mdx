@@ -1,7 +1,7 @@
 ---
-title: "Download Google Purchases History from Gmail"
+title: "Download Google Purchase History Extracted from Gmail"
 sidebarTitle: "Google Purchases"
-description: "Scrape purchases that Google extracted from Gmail using finance_dl.google_purchases. Downloads order detail HTML and JSON files in Google Takeout format."
+description: "Scrape purchases Google extracted from Gmail using finance_dl.google_purchases. Saves each order as an HTML detail page and a Google Takeout JSON file."
 ---
 
 The `finance_dl.google_purchases` scraper retrieves the purchase and reservation history that Google heuristically extracts from your Gmail messages. It uses `selenium` and `chromedriver` to drive the Google Takeout and Google Purchases/Reservations websites, then saves each purchase as both a raw HTML file and a structured JSON file that mirrors the Google Takeout export format.
@@ -54,8 +54,6 @@ def CONFIG_google_purchases():
             'password': 'XXXXXX',
         },
         output_directory=os.path.join(data_dir, 'google_purchases'),
-        # profile_dir is optional.
-        profile_dir=os.path.join(profile_dir, 'google_purchases'),
     )
 ```
 

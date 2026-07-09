@@ -1,7 +1,7 @@
 ---
-title: "Configuration Module Structure and Options"
+title: "finance-dl Configuration Module: Structure and Options"
 sidebarTitle: "Overview"
-description: "Learn how to write a finance-dl configuration module with CONFIG_ functions. Each function returns a dict specifying module, credentials, and output directory."
+description: "How to write a finance-dl configuration module using CONFIG_ functions. Each function returns a dict specifying module, credentials, and output directory."
 ---
 
 finance-dl reads all of its scraping instructions from a plain Python configuration module — a `.py` file you write once and reuse on every run. This page explains the required structure of that module, the naming convention for configuration entries, the common dict keys every scraper understands, and the variable patterns that keep paths tidy across many accounts.

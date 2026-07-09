@@ -67,16 +67,14 @@ The UUID in that attribute is your `account_uid`.
 def CONFIG_radius():
     return dict(
         module='finance_dl.radius',
+        earliest_history_date='2019-01-01',
         credentials={
             'username': 'XXXXXX',
             'password': 'XXXXXX',
             'account_uid': 'XXXXXX-XXXX-XXXX-XXXXXXXXXXXX',
         },
         output_directory=os.path.join(data_dir, 'radius'),
-
-        # profile_dir is optional but highly recommended to avoid having to
-        # enter multi-factor authentication code each time.
-        profile_dir=os.path.join(profile_dir, 'chrome'),
+        profile_dir=profile_dir,
         headless=False,
     )
 ```

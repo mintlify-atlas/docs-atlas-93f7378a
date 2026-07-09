@@ -1,7 +1,7 @@
 ---
-title: "Download Amazon Order Invoices to HTML Files"
+title: "Download Amazon Order Invoices as HTML Files with finance-dl"
 sidebarTitle: "Amazon"
-description: "Scrape Amazon order invoices (regular and digital) as HTML files using finance_dl.amazon. Supports multiple Amazon domains, order groups, and per-year directories."
+description: "Scrape Amazon order invoices (regular and digital) as HTML files using finance_dl.amazon. Supports .com, .co.uk, and .de domains with per-year directories."
 ---
 
 The `finance_dl.amazon` scraper downloads order invoices from your Amazon account using `selenium` and `chromedriver`. Both regular and digital order invoices are saved as individual HTML files, making them easy to archive, search, and import into accounting workflows. You can target specific order groups — such as a particular year or the past three months — to keep incremental runs fast.
@@ -84,8 +84,6 @@ def CONFIG_amazon():
         output_directory=os.path.join(data_dir, 'amazon'),
         # profile_dir is optional.
         profile_dir=os.path.join(profile_dir, 'amazon'),
-        # order_groups is optional; restrict to recent orders for faster runs.
-        order_groups=['past 3 months'],
     )
 ```
 

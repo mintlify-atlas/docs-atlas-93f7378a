@@ -1,7 +1,7 @@
 ---
-title: "Debug Scrapers with finance-dl Interactive Mode"
+title: "finance-dl Interactive Mode: Debug Scrapers in IPython"
 sidebarTitle: "Interactive Mode"
-description: "Launch an IPython shell to manually drive scrapers, inspect page state, debug login flows, and complete MFA challenges during development or troubleshooting."
+description: "Use finance-dl interactive mode to drive scrapers manually, inspect page state, debug login flows, and complete MFA challenges during troubleshooting."
 ---
 
 finance-dl's interactive mode drops you into a live IPython shell with a fully initialised scraper instance, a real browser window, and direct access to Selenium helpers — all wired together in one command. This page explains how to launch interactive mode, what variables are available in the shell, and common patterns for debugging login flows and multi-factor authentication.
@@ -66,12 +66,6 @@ For most scrapers, calling `self.run()` executes the complete scraping sequence 
 
 ```python
 self.run()
-```
-
-For the Mint scraper, the run function takes explicit arguments:
-
-```python
-run(output_directory=output_directory, profile_dir=profile_dir, credentials=credentials)
 ```
 
 ### Navigate the browser manually

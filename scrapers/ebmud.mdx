@@ -1,7 +1,7 @@
 ---
-title: "Download EBMUD Water Bill PDFs"
+title: "Download EBMUD Water Bill PDFs Automatically with finance-dl"
 sidebarTitle: "EBMUD"
-description: "Scrape East Bay Municipal Utility District (EBMUD) water bill PDFs using finance_dl.ebmud. Bills saved by bill date, parseable with pdftotext."
+description: "Scrape East Bay Municipal Utility District (EBMUD) water bill PDFs using finance_dl.ebmud. Bills are named by bill date and parseable with pdftotext."
 ---
 
 The `finance_dl.ebmud` scraper downloads East Bay Municipal Utility District (EBMUD) water bills as PDF files using `selenium` and `chromedriver`. Each bill is saved with a filename derived from its bill date, keeping your utility archives neatly sorted. The PDFs are text-based and can be processed with `pdftotext` to extract billing details for use in automated accounting workflows.

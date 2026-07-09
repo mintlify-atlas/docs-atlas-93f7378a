@@ -1,7 +1,7 @@
 ---
 title: "finance-dl CLI Reference: Running Individual Scrapers"
 sidebarTitle: "CLI"
-description: "Complete reference for the finance-dl CLI. Run individual scraper configurations by name, supply inline JSON specs, and control log verbosity and browser visibility."
+description: "Complete reference for the finance-dl CLI: run scrapers by config name or inline JSON spec, and control log verbosity and browser visibility."
 ---
 
 finance-dl ships a command-line interface that lets you run any single scraper configuration directly. This page covers every argument accepted by `finance_dl.cli`, explains how the config module is resolved at runtime, and shows practical examples for both the `--config` and `--spec` invocation styles.
@@ -42,16 +42,18 @@ python -m finance_dl.cli --config-module finance_dl_config --config mybank
   so you can run from the folder that contains the config file.
 </ParamField>
 
-<ParamField body="--config, -c" type="string" required>
+<ParamField body="--config, -c" type="string">
   The configuration name to run. Resolves to the function `CONFIG_<name>` inside
-  the config module. Mutually exclusive with `--spec`.
+  the config module. Mutually exclusive with `--spec`; exactly one of `--config`
+  or `--spec` is required.
 </ParamField>
 
-<ParamField body="--spec, -s" type="string" required>
+<ParamField body="--spec, -s" type="string">
   A raw JSON string that fully specifies the scraper to run, without a config
   module. The JSON object **must** include a `"module"` key naming the scraper
   module to import. All other keys are forwarded as keyword arguments to that
-  module's `run()` function. Mutually exclusive with `--config`.
+  module's `run()` function. Mutually exclusive with `--config`; exactly one of
+  `--spec` or `--config` is required.
 
   Example:
   ```

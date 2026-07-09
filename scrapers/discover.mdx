@@ -69,17 +69,13 @@ If the OFX connection is unavailable or unreliable, the `finance_dl.discover` mo
   </Note>
 </ParamField>
 
-<ParamField path="headless" type="bool" default="True">
+<ParamField path="headless" type="bool">
   When `True`, Chrome runs without a visible window. Set to `False` to show the browser — useful for debugging login or MFA issues.
 </ParamField>
 
 ### Output Format
 
-The scraper downloads a single OFX file covering all transactions in the current calendar year and writes it to `output_directory`.
-
-<Note>
-  The `finance_dl.discover` web scraper also enforces a 5-second delay between requests to comply with Discover's rate limits. This delay is built in and requires no configuration.
-</Note>
+The scraper downloads a single OFX file covering all transactions in the current calendar year. The file is written to a sub-directory of `output_directory` named after the last four digits of your card number, using the naming scheme `<output_directory>/<last4>/Discover-<year>.ofx`. For example: `discover/1234/Discover-2024.ofx`.
 
 ### Web Scraper Config Example
 

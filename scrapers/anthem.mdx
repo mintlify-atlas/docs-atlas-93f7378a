@@ -1,7 +1,7 @@
 ---
-title: "Download Anthem BlueCross Insurance EOB Statements"
+title: "Download Anthem BlueCross EOB Statements with finance-dl"
 sidebarTitle: "Anthem"
-description: "Download Anthem BlueCross Explanation of Benefits (EOB) PDFs and claim JSON using finance_dl.anthem. Requires manual login; automation countermeasures prevent full automation."
+description: "Download Anthem BlueCross EOB PDFs and claim JSON using finance_dl.anthem. Semi-automatic: manual login required due to automation countermeasures."
 ---
 
 The `finance_dl.anthem` scraper downloads Anthem BlueCross Explanation of Benefits (EOB) statements as PDF files, along with structured JSON claim data, using `selenium` and `chromedriver`. Because Anthem actively detects and blocks automated login attempts, this scraper is **semi-automatic**: you log in and navigate to the claims page yourself in the visible browser window, then the scraper takes over to download all available claims.
@@ -87,9 +87,7 @@ def CONFIG_anthem():
         module='finance_dl.anthem',
         login_url='https://anthem.com',
         output_directory=os.path.join(data_dir, 'anthem'),
-        # profile_dir is optional but recommended.
         profile_dir=os.path.join(profile_dir, 'anthem'),
-        # headless must be False since manual intervention is required.
         headless=False,
     )
 ```

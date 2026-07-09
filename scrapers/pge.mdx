@@ -1,7 +1,7 @@
 ---
-title: "Download Pacific Gas & Electric PDF Bills"
+title: "Download Pacific Gas and Electric PDF Bills with finance-dl"
 sidebarTitle: "PG&E"
-description: "Scrape PG&E electricity and gas bills as PDF files using finance_dl.pge. Bills are named by statement date and can be parsed with pdftotext for accounting."
+description: "Scrape PG&E electricity and gas bills as PDFs using finance_dl.pge. Bills are named by statement date and can be parsed with pdftotext for accounting."
 ---
 
 The `finance_dl.pge` scraper downloads Pacific Gas and Electric (PG&E) monthly bills as PDF files using `selenium` and `chromedriver`. Each bill is saved with a filename derived from its statement date, making it straightforward to sort and archive your utility history. The PDFs are text-based and can be processed with `pdftotext` to extract line items for use with beancount-import or other accounting tools.

@@ -1,7 +1,7 @@
 ---
-title: "Download WaveApps Receipts and Transaction Data"
+title: "Download WaveApps Receipt Images and Transaction JSON"
 sidebarTitle: "WaveApps"
-description: "Fetch receipt images and extracted transaction JSON from WaveApps using the REST API via finance_dl.waveapps. Supports multiple businesses and OAuth2 tokens."
+description: "Fetch receipt images and extracted transaction JSON from WaveApps via the REST API using finance_dl.waveapps. Supports multiple businesses and token auth."
 ---
 
 The `finance_dl.waveapps` scraper retrieves receipt images and extracted transaction data from [WaveApps](https://www.waveapps.com) via the official WaveApps REST API. Unlike browser-based scrapers, this module communicates directly with the API using a Full Access token or OAuth2 credentials, making it faster and more reliable. All businesses accessible under the provided credentials are downloaded automatically.
@@ -47,7 +47,7 @@ The `finance_dl.waveapps` scraper retrieves receipt images and extracted transac
 </ParamField>
 
 <ParamField path="use_business_directory" type="bool">
-  When `True`, a separate subdirectory named after the business ID is created inside `output_directory` for each business. This supplements the existing per-business-name subdirectory structure.
+  When `True`, receipts for each business are written into a subdirectory of `output_directory` named after the business ID, rather than all into `output_directory` directly.
 </ParamField>
 
 <ParamField path="active_only" type="bool">
@@ -56,15 +56,15 @@ The `finance_dl.waveapps` scraper retrieves receipt images and extracted transac
 
 ## Output Format
 
-Receipts for all businesses accessible with the provided credentials are downloaded. Within `output_directory`, a subdirectory is created for each business, named after the business name.
+Receipts for all businesses accessible with the provided credentials are downloaded. When `use_business_directory` is `True`, receipts for each business are written into a subdirectory of `output_directory` named after the business ID; otherwise all receipts are written directly into `output_directory`.
 
-Inside each business subdirectory, the following files are written per receipt:
+Inside each directory, the following files are written per receipt:
 
 | File | Description |
 |---|---|
 | `<receipt-id>.json` | JSON data returned by the WaveApps API for the receipt. |
-| `<receipt-id>.jpeg` | Primary receipt image in full resolution. |
-| `<receipt-id>.01.jpeg`, `<receipt-id>.02.jpeg`, … | Additional images, if present. |
+| `<receipt-id>.jpg` | Primary receipt image in full resolution. |
+| `<receipt-id>.01.jpg`, `<receipt-id>.02.jpg`, … | Additional images, if present. |
 
 The JSON file contains at minimum the following fields:
 

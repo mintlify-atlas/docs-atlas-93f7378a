@@ -1,7 +1,7 @@
 ---
-title: "Download Charles Schwab Brokerage Data in CSV"
+title: "Download Charles Schwab Brokerage Data to CSV Files"
 sidebarTitle: "Schwab"
-description: "Scrape Charles Schwab brokerage transaction history, positions, and cost-basis lot data using finance_dl.schwab. Saves CSV files per account with date ranges."
+description: "Scrape Charles Schwab brokerage transactions, positions, and cost-basis lots via finance_dl.schwab. Saves dated CSV files per account."
 ---
 
 The `finance_dl.schwab` scraper automates downloading transaction history, daily positions, and optional cost-basis lot details from Charles Schwab brokerage and banking accounts. It uses Selenium and ChromeDriver to authenticate with the Schwab web interface and then calls internal Schwab export APIs to pull structured CSV data for each account found in your profile.
@@ -71,6 +71,7 @@ The scraper downloads data up to yesterday's date to avoid gaps from intraday tr
 </Note>
 
 ```python
+import datetime
 import os
 
 data_dir = os.path.expanduser('~/financial-data')
@@ -93,6 +94,12 @@ def CONFIG_schwab():
 To also download cost-basis lot details for all positions, add `lot_details=True`:
 
 ```python
+import datetime
+import os
+
+data_dir = os.path.expanduser('~/financial-data')
+profile_dir = os.path.expanduser('~/chrome-profiles')
+
 def CONFIG_schwab():
     return dict(
         module='finance_dl.schwab',

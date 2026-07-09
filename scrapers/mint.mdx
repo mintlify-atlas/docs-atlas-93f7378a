@@ -1,7 +1,7 @@
 ---
 title: "Download Mint.com Transactions and Account Balances"
 sidebarTitle: "Mint"
-description: "Scrape Mint.com transaction history and account balance data using finance_dl.mint with mintapi. Merges new CSV data without duplicates using multi-field deduplication."
+description: "Scrape Mint.com transaction history and balance data using finance_dl.mint. Outputs mint.csv and timestamped balance files with multi-field deduplication."
 ---
 
 The `finance_dl.mint` scraper downloads your transaction history and account balance data from [Mint.com](https://mint.intuit.com) using the `mintapi` Python package alongside `selenium` and `chromedriver`. This page covers all configuration parameters, the output file format, deduplication behavior for merged files, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
@@ -69,6 +69,8 @@ def CONFIG_mint():
             'password': 'XXXXXX',
         },
         output_directory=os.path.join(data_dir, 'mint'),
+        # profile_dir is optional, but highly recommended to avoid having to
+        # enter multi-factor authentication code each time.
         profile_dir=os.path.join(profile_dir, 'mint'),
     )
 ```
