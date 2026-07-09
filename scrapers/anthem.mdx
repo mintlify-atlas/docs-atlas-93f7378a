@@ -1,0 +1,103 @@
+---
+title: "Download Anthem BlueCross Insurance EOB Statements"
+sidebarTitle: "Anthem"
+description: "Download Anthem BlueCross Explanation of Benefits (EOB) PDFs and claim JSON using finance_dl.anthem. Requires manual login; automation countermeasures prevent full automation."
+---
+
+The `finance_dl.anthem` scraper downloads Anthem BlueCross Explanation of Benefits (EOB) statements as PDF files, along with structured JSON claim data, using `selenium` and `chromedriver`. Because Anthem actively detects and blocks automated login attempts, this scraper is **semi-automatic**: you log in and navigate to the claims page yourself in the visible browser window, then the scraper takes over to download all available claims.
+
+<Warning>
+  **`headless` must be set to `False`.** Anthem's automation countermeasures require a visible browser window for the manual login step. Setting `headless: True` will cause the scraper to fail.
+</Warning>
+
+## Configuration Parameters
+
+<ParamField path="login_url" type="string" required>
+  The initial URL to open in the browser. The user is responsible for manually logging in and navigating to the claims page from this starting point. Use `'https://anthem.com'` as the standard value.
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where output files will be written. The directory is created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory used exclusively for this scraper. Do not point this at your regular browser profile. When omitted, a fresh temporary profile is used on every run.
+
+  <Note>
+    A persistent `profile_dir` is recommended so that your Anthem session can be reused across runs, reducing how often you need to complete the manual login flow.
+  </Note>
+</ParamField>
+
+<ParamField path="headless" type="bool" default="False">
+  Must be set to `False`. The manual login step requires a visible browser window. This parameter is listed explicitly in the config to make the requirement clear.
+</ParamField>
+
+## Manual Login Flow
+
+Because Anthem blocks automated logins, you must complete the sign-in process yourself each time. Once you have navigated to the claims page, the scraper takes over automatically.
+
+<Steps>
+  <Step title="Launch the scraper">
+    Run `finance-dl` with your Anthem configuration. A visible Chrome window will open and navigate to `login_url`.
+  </Step>
+  <Step title="Log in to your Anthem account">
+    In the browser window, enter your Anthem username and password and complete any multi-factor authentication challenge.
+  </Step>
+  <Step title="Navigate to the claims page">
+    After logging in, manually browse to the claims listing page within the Anthem website.
+  </Step>
+  <Step title="Let the scraper take over">
+    Once the claims page is loaded, the scraper detects the claim data and automatically downloads all available EOB PDFs and JSON files to `output_directory`.
+  </Step>
+</Steps>
+
+## Output Format
+
+Two files are written to `output_directory` for each claim:
+
+| File | Description |
+|---|---|
+| `<id>.json` | JSON representation of the claim as returned by the Anthem server. |
+| `<id>.pdf` | The Explanation of Benefits (EOB) PDF statement for the claim. |
+
+The JSON file has the following structure:
+
+```json
+{
+  "patient": {
+    "displayName": "John Smith",
+    "uniqueId": "123456789",
+    "allowsAccess": true
+  },
+  "provider": "SOME MEDICAL PROVIDER",
+  "totalCharges": 385,
+  "serviceDate": "01/02/2017 00:00:00",
+  "memberResponsibility": 111.05,
+  "status": "Approved",
+  "appliedToDeductible": 111.05,
+  "claimNumber": "2017123AB1234"
+}
+```
+
+## Config Example
+
+```python
+def CONFIG_anthem():
+    return dict(
+        module='finance_dl.anthem',
+        login_url='https://anthem.com',
+        output_directory=os.path.join(data_dir, 'anthem'),
+        # profile_dir is optional but recommended.
+        profile_dir=os.path.join(profile_dir, 'anthem'),
+        # headless must be False since manual intervention is required.
+        headless=False,
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper with:
+
+```python
+self.run()
+```

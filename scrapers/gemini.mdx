@@ -1,0 +1,92 @@
+---
+title: "Download Gemini Crypto Exchange Trades and Balances"
+sidebarTitle: "Gemini"
+description: "Fetch trades, transfers, and daily balances from Gemini crypto exchange using the REST API via finance_dl.gemini. Saves incrementally to CSV files."
+---
+
+The `finance_dl.gemini` scraper retrieves trade history, transfer history, and current balance snapshots from the [Gemini](https://www.gemini.com) cryptocurrency exchange using Gemini's authenticated REST API. Unlike the browser-based scrapers, this module uses the `requests` library directly — no Selenium or ChromeDriver is required. Downloads are incremental: the scraper inspects existing files to determine the most recent timestamp already on disk and fetches only newer records.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dict containing your Gemini API key and secret. These are REST API credentials generated in your Gemini account settings, not your login username and password.
+
+  <Expandable title="credentials fields">
+    <ParamField path="api_key" type="string" required>
+      Your Gemini API key, obtained from **Settings → API** in the Gemini web interface.
+    </ParamField>
+    <ParamField path="api_secret" type="string" required>
+      Your Gemini API secret, shown once when the API key is created.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path to the local directory where downloaded CSV files will be written. The directory will be created if it does not exist.
+</ParamField>
+
+## API Endpoints Used
+
+This scraper communicates with the following Gemini REST API endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `https://api.gemini.com/v1/balances` | Fetches current balances for all currencies held |
+| `https://api.gemini.com/v1/mytrades` | Fetches trade history, paginated by timestamp |
+| `https://api.gemini.com/v1/transfers` | Fetches deposit and withdrawal history |
+| `https://api.gemini.com/v2/ticker/{symbol}` | Fetches current bid/ask prices per currency for USD valuation in balance snapshots |
+
+All authenticated requests use HMAC-SHA384 signatures over a base64-encoded JSON payload, following the Gemini private API authentication scheme.
+
+## Output Format
+
+All output files are written directly into `output_directory`:
+
+```
+output_directory/
+  trades.1632852595934.csv
+  transfers.1632752595924.csv
+  balances.2024-01-15.csv
+  balances.2024-02-01.csv
+```
+
+| File pattern | Contents |
+|---|---|
+| `trades.<timestamp>.csv` | All trades up to and including the millisecond timestamp in the filename |
+| `transfers.<timestamp>.csv` | All transfers up to and including the millisecond timestamp in the filename |
+| `balances.YYYY-MM-DD.csv` | Balance snapshot taken on the given date, with mid-market USD prices |
+
+**Incremental downloads:** The timestamp embedded in `trades.*.csv` and `transfers.*.csv` filenames encodes the `timestampms` of the last record in that file. On the next run, the scraper sorts existing files, reads the most recent timestamp, and requests only records newer than that point. Balance snapshots are written using today's date and are created fresh on each run.
+
+<Note>
+  The Gemini public API allows up to 120 requests per minute. The scraper enforces a minimum interval of 0.5 seconds between requests and retries automatically on HTTP 429 responses, backing off according to the delay indicated by the server.
+</Note>
+
+## Getting API Credentials
+
+1. Log in to [gemini.com](https://www.gemini.com) and navigate to **Settings → API**.
+2. Click **Create a New API Key**.
+3. Select the **Auditor** role (read-only) — full trading permissions are not required for downloading data.
+4. Copy both the **API Key** and **API Secret** immediately; the secret is only shown once.
+
+## Configuration Example
+
+```python
+import os
+
+data_dir = os.path.expanduser('~/financial-data')
+
+def CONFIG_gemini():
+    return dict(
+        module='finance_dl.gemini',
+        credentials={
+            'api_key': 'XXXXXX',
+            'api_secret': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'gemini'),
+    )
+```
+
+<Note>
+  This scraper does not use Selenium. You do not need to configure `profile_dir`, `headless`, or ChromeDriver for Gemini.
+</Note>

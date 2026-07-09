@@ -1,0 +1,88 @@
+---
+title: "US Bank Credit Card Transactions Downloaded as OFX"
+sidebarTitle: "US Bank"
+description: "Scrape US Bank credit card transaction history using finance_dl.usbank. Downloads OFX format data via the web interface for REI and similar US Bank cards."
+---
+
+The `finance_dl.usbank` scraper uses `selenium` and `chromedriver` to log into the US Bank website and download credit card transaction history as an OFX file. It was specifically developed and tested against the REI Co-op credit card issued by US Bank; other US Bank cards with a different web interface layout may not work without modification. This page covers all configuration parameters, the output format, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your US Bank login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your US Bank account username.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your US Bank account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where the OFX output file will be written. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="account_name" type="string" required>
+  The display name of the credit card account as it appears in the US Bank web interface, used to locate the correct account. For example: `'REI - 1234'`.
+</ParamField>
+
+<ParamField path="earliest_history_date" type="string">
+  The earliest date for which to retrieve transactions, specified as a date string (e.g. `'2019-01-01'`). When specified, `max_history_days` has no effect.
+</ParamField>
+
+<ParamField path="max_history_days" type="int" default="1460">
+  Number of days of history to retrieve, counting back from the previous UTC day. Only used when `earliest_history_date` is not set. Defaults to `365 * 4` (approximately four years).
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+
+  <Note>
+    It is **highly recommended** to set `profile_dir`. Without it, US Bank's multi-factor authentication prompt will appear on every run, requiring manual intervention each time.
+  </Note>
+</ParamField>
+
+<ParamField path="headless" type="bool">
+  When `True`, Chrome runs without a visible window. When `False`, the browser window is shown — useful for debugging login issues or MFA prompts. Defaults to the global scraper default.
+</ParamField>
+
+## Output Format
+
+The scraper downloads a single OFX file containing the requested transaction history and writes it to `output_directory`.
+
+<Warning>
+  This scraper was developed specifically for the REI Co-op credit card issued by US Bank. Other US Bank card products that use a different web interface layout may not work correctly.
+</Warning>
+
+## Config Example
+
+```python
+def CONFIG_usbank():
+    return dict(
+        module='finance_dl.usbank',
+        earliest_history_date='2019-01-01',
+        account_name='XXX - XXXX',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'usbank/XXXXXXXXXXXXXXXXXX'),
+
+        # profile_dir is optional but highly recommended to avoid having to
+        # enter multi-factor authentication code each time.
+        profile_dir=profile_dir,
+        headless=False,
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper by running:
+
+```python
+self.run()
+```

@@ -1,0 +1,98 @@
+---
+title: "Download Amazon Order Invoices to HTML Files"
+sidebarTitle: "Amazon"
+description: "Scrape Amazon order invoices (regular and digital) as HTML files using finance_dl.amazon. Supports multiple Amazon domains, order groups, and per-year directories."
+---
+
+The `finance_dl.amazon` scraper downloads order invoices from your Amazon account using `selenium` and `chromedriver`. Both regular and digital order invoices are saved as individual HTML files, making them easy to archive, search, and import into accounting workflows. You can target specific order groups — such as a particular year or the past three months — to keep incremental runs fast.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Amazon account login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Amazon account email address or phone number.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Amazon account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where invoice HTML files will be written. The directory is created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory used exclusively for this scraper. Do not point this at your regular browser profile. When omitted, a fresh temporary profile is used on every run.
+</ParamField>
+
+<ParamField path="dir_per_year" type="bool" default="False">
+  When `True`, invoice files are placed inside a per-year subdirectory of `output_directory` (e.g., `output_directory/2023/`). Useful for filesystems that slow down with very large flat directories.
+</ParamField>
+
+<ParamField path="amazon_domain" type="string" default="'.com'">
+  The Amazon domain from which to download orders. Must be one of `'.com'`, `'.co.uk'`, or `'.de'`. Defaults to `'.com'`.
+
+  <Note>
+    On non-`.com` domains, digital orders do not have a separate order menu and are downloaded together with regular orders when `regular` is `True`.
+  </Note>
+</ParamField>
+
+<ParamField path="regular" type="bool" default="True">
+  When `True`, downloads regular (physical) order invoices. On domains other than `.com`, setting this to `True` also downloads digital orders since Amazon does not separate them there.
+</ParamField>
+
+<ParamField path="digital" type="bool or None" default="True (for .com only)">
+  When `True`, downloads digital order invoices. This parameter is only effective when `amazon_domain` is `'.com'`; on other domains, digital orders are handled by the `regular` flag. Set to `False` or `None` to skip digital orders on `.com`.
+</ParamField>
+
+<ParamField path="order_groups" type="list[string]">
+  A list of Amazon order page "order groups" to scan. Order groups correspond to the filter options on Amazon's Orders page, such as years (e.g., `'2020'`, `'2021'`) or rolling windows (`'last 30 days'`, `'past 3 months'`). When omitted, all available order groups are scanned.
+</ParamField>
+
+<ParamField path="download_preorder_invoices" type="bool">
+  When `True`, invoices for preorders that have not yet been charged are downloaded. These invoices incorrectly claim that a card has been charged before it actually has, and they are later replaced by correct invoices once the order ships. Leaving this unset (or setting it to `False`) is recommended for accounting purposes.
+
+  <Note>
+    Preorder invoices are misleading for bookkeeping: they assert a charge was made when it has not been yet. They are replaced by accurate invoices when the order fulfils.
+  </Note>
+</ParamField>
+
+## Output Format
+
+Each invoice is saved to `output_directory` (or a per-year subdirectory when `dir_per_year` is `True`) as a single HTML file. The filename is derived from the Amazon order ID:
+
+| Order type | Example filename |
+|---|---|
+| Regular order | `166-7926740-5141621.html` |
+| Digital order | `D56-5204779-4181560.html` |
+
+## Config Example
+
+```python
+def CONFIG_amazon():
+    return dict(
+        module='finance_dl.amazon',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'amazon'),
+        # profile_dir is optional.
+        profile_dir=os.path.join(profile_dir, 'amazon'),
+        # order_groups is optional; restrict to recent orders for faster runs.
+        order_groups=['past 3 months'],
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper with:
+
+```python
+self.run()
+```

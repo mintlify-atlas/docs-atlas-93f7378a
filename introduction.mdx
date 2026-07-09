@@ -1,0 +1,104 @@
+---
+title: "finance-dl: Automated Personal Financial Data Scraping"
+sidebarTitle: "Introduction"
+description: "finance-dl is a Python toolkit that automates downloading transactions, statements, and balances from 18+ financial institutions for use with beancount-import."
+---
+
+finance-dl is an open-source Python package that automates the tedious work of downloading your personal financial data — transactions, balances, invoices, and statements — directly from financial institution websites and APIs. This page explains what finance-dl is, how it works under the hood, which data sources it supports, and how it fits into a broader personal finance workflow with beancount-import.
+
+<Note>
+  finance-dl is specifically designed to work alongside [beancount-import](https://github.com/jbms/beancount-import), a tool for automatically importing downloaded financial data into [Beancount](https://beancount.github.io/) double-entry accounting files. While finance-dl is useful on its own as a data downloader, the two tools together form a complete pipeline from raw institution data to structured ledger entries.
+</Note>
+
+## How It Works
+
+finance-dl uses two complementary mechanisms to retrieve data, depending on what each financial institution supports:
+
+<CardGroup cols={2}>
+  <Card title="OFX Direct Connect" icon="plug">
+    For institutions that support the Open Financial Exchange (OFX) protocol, finance-dl uses [ofxclient](https://github.com/captin411/ofxclient) to connect directly to the institution's server endpoint and download transaction data programmatically — no browser required, no screen scraping.
+  </Card>
+  <Card title="Selenium / ChromeDriver" icon="browser">
+    For institutions without an OFX endpoint, finance-dl drives a real Chrome browser via Selenium and ChromeDriver to log in and scrape the data just as a human user would. Scrapers run headless by default and retry with a visible window if the first attempt fails.
+  </Card>
+</CardGroup>
+
+## Supported Data Sources
+
+finance-dl includes scrapers for 18+ financial institutions and services:
+
+<CardGroup cols={2}>
+  <Card title="finance_dl.ofx" icon="bank">
+    Uses the OFX Direct Connect protocol via ofxclient. Works with any institution that exposes an OFX endpoint — Vanguard, Discover, and many others. Institution parameters (id, org, url) can be looked up at [ofxhome.com](https://www.ofxhome.com/).
+  </Card>
+  <Card title="finance_dl.mint" icon="leaf">
+    Uses [mintapi](https://github.com/mrooney/mintapi) to download aggregated transaction and balance data from Mint.com.
+  </Card>
+  <Card title="finance_dl.venmo" icon="money-bill-transfer">
+    Downloads transaction history and balance information from the Venmo.com website via browser automation.
+  </Card>
+  <Card title="finance_dl.paypal" icon="paypal">
+    Downloads transaction history from the PayPal.com website via browser automation.
+  </Card>
+  <Card title="finance_dl.amazon" icon="amazon">
+    Downloads full order invoices from the Amazon website, useful for itemized expense tracking.
+  </Card>
+  <Card title="finance_dl.healthequity" icon="heart-pulse">
+    Downloads transaction history and balance information from the HealthEquity HSA website.
+  </Card>
+  <Card title="finance_dl.google_purchases" icon="google">
+    Downloads purchase records that Google has extracted from Gmail messages and stored in your account.
+  </Card>
+  <Card title="finance_dl.stockplanconnect" icon="chart-line">
+    Downloads PDF documents — including release and trade confirmations — from the Morgan Stanley StockPlanConnect website.
+  </Card>
+  <Card title="finance_dl.pge" icon="bolt">
+    Downloads Pacific Gas & Electric (PG&E) utility bills in PDF format.
+  </Card>
+  <Card title="finance_dl.comcast" icon="wifi">
+    Downloads Comcast billing statements in PDF format.
+  </Card>
+  <Card title="finance_dl.ebmud" icon="droplet">
+    Downloads East Bay Municipal Utility District (EBMUD) water bills.
+  </Card>
+  <Card title="finance_dl.anthem" icon="shield-halved">
+    Downloads Anthem BlueCross insurance Explanation of Benefits (EOB) claim statements.
+  </Card>
+  <Card title="finance_dl.waveapps" icon="receipt">
+    Downloads receipt images and extracted transaction data from [Wave](https://waveapps.com), a free receipt-scanning app.
+  </Card>
+  <Card title="finance_dl.ultipro_google" icon="file-invoice-dollar">
+    Downloads Google employee payroll statements in PDF format from the Ultipro HR platform.
+  </Card>
+  <Card title="finance_dl.usbank" icon="building-columns">
+    Downloads credit card transaction data from US Bank accounts in OFX format.
+  </Card>
+  <Card title="finance_dl.radiusbank" icon="piggy-bank">
+    Downloads account transaction data from Radius Bank in QFX format.
+  </Card>
+  <Card title="finance_dl.schwab" icon="chart-bar">
+    Downloads transaction and position data from Schwab brokerage accounts in CSV format.
+  </Card>
+  <Card title="finance_dl.gemini" icon="bitcoin">
+    Downloads trades, transfers, and balances from the Gemini cryptocurrency exchange using the REST API, stored in a custom CSV format.
+  </Card>
+</CardGroup>
+
+<Tip>
+  For Selenium-based scrapers that require multi-factor authentication (MFA), configure a persistent `profile_dir` in your scraper configuration. Chrome will save session cookies and MFA state to that directory between runs, so you won't need to re-enter authentication codes on every scrape. See the [Quickstart](/quickstart) for a full configuration example.
+</Tip>
+
+## License
+
+finance-dl is distributed under the **GNU General Public License, Version 2.0 only**. Copyright (C) 2014–2018 Jeremy Maitin-Shepard. See the [LICENSE](https://github.com/jbms/finance-dl/blob/master/LICENSE) file in the repository for full terms.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="wrench" href="/installation">
+    Install finance-dl from PyPI or source, and set up ChromeDriver for browser-based scrapers.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first configuration and run a scraper in under 5 minutes.
+  </Card>
+</CardGroup>

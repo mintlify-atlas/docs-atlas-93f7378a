@@ -1,0 +1,130 @@
+---
+title: "finance-dl CLI Reference: Running Individual Scrapers"
+sidebarTitle: "CLI"
+description: "Complete reference for the finance-dl CLI. Run individual scraper configurations by name, supply inline JSON specs, and control log verbosity and browser visibility."
+---
+
+finance-dl ships a command-line interface that lets you run any single scraper configuration directly. This page covers every argument accepted by `finance_dl.cli`, explains how the config module is resolved at runtime, and shows practical examples for both the `--config` and `--spec` invocation styles.
+
+## Basic Usage
+
+You can invoke the CLI as a Python module or via the installed entry point:
+
+<CodeGroup>
+
+```bash Python module
+python -m finance_dl.cli --config-module <module> --config <name>
+```
+
+```bash Installed entry point
+finance-dl --config-module <module> --config <name>
+```
+
+</CodeGroup>
+
+The `<module>` is the dotted Python import path to a file that contains one or more `CONFIG_<name>` functions, and `<name>` is the suffix that identifies which function to call.
+
+## How the Config Module Is Found
+
+Before importing your config module, `finance_dl.cli` appends `os.getcwd()` to `sys.path`. This means you can place your config file in the current working directory and reference it by name without installing it as a package or manually adjusting `PYTHONPATH`.
+
+```bash
+# Run from the directory that contains finance_dl_config.py
+cd ~/finance
+python -m finance_dl.cli --config-module finance_dl_config --config mybank
+```
+
+## Flags Reference
+
+<ParamField body="--config-module" type="string">
+  The importable Python module that defines your `CONFIG_<name>` functions.
+  Must be reachable on `sys.path` — the current directory is added automatically,
+  so you can run from the folder that contains the config file.
+</ParamField>
+
+<ParamField body="--config, -c" type="string" required>
+  The configuration name to run. Resolves to the function `CONFIG_<name>` inside
+  the config module. Mutually exclusive with `--spec`.
+</ParamField>
+
+<ParamField body="--spec, -s" type="string" required>
+  A raw JSON string that fully specifies the scraper to run, without a config
+  module. The JSON object **must** include a `"module"` key naming the scraper
+  module to import. All other keys are forwarded as keyword arguments to that
+  module's `run()` function. Mutually exclusive with `--config`.
+
+  Example:
+  ```
+  --spec '{"module": "finance_dl.ofx", "ofx_params": {...}, "output_directory": "/data/vanguard"}'
+  ```
+</ParamField>
+
+<ParamField body="--interactive, -i" type="boolean" default="false">
+  Launch an IPython shell instead of running the scraper automatically.
+  Implies `--visible`, so the browser window is always displayed in interactive
+  mode. See [Interactive Mode](/running/interactive-mode) for details.
+</ParamField>
+
+<ParamField body="--visible" type="boolean" default="false">
+  Run with a visible browser window. Useful for watching a scraper execute or
+  for debugging login flows without dropping into a full interactive session.
+  Implied automatically by `--interactive`.
+</ParamField>
+
+<ParamField body="--log" type="string" default="INFO">
+  Python logging level name. Accepts `DEBUG`, `INFO`, `WARNING`, `ERROR`, or
+  `CRITICAL` (case-insensitive). Controls verbosity of all log output to stdout.
+</ParamField>
+
+## How `--spec` Works
+
+When you pass `--spec`, the CLI:
+
+1. Parses the value with `json.loads`.
+2. Pops the `"module"` key from the resulting dict to determine which scraper module to import.
+3. Sets `headless` to `True` by default (or `False` if `--visible` or `--interactive` is present), inserting it into the spec only if it is not already set.
+4. Calls `module.run(**remaining_kwargs)` with the rest of the dict.
+
+This lets you run any scraper without maintaining a separate config file — handy for quick one-off runs or scripted pipelines.
+
+## Examples
+
+<CodeGroup>
+
+```bash Run a named config
+# Runs CONFIG_mybank() from finance_dl_config.py, found in the current directory
+python -m finance_dl.cli \
+  --config-module finance_dl_config \
+  --config mybank
+```
+
+```bash Run with visible browser
+# Show the Chrome window while scraping (useful for watching or debugging)
+python -m finance_dl.cli \
+  --config-module finance_dl_config \
+  --config mybank \
+  --visible
+```
+
+```bash Run with verbose logging
+# Enable DEBUG-level log output
+python -m finance_dl.cli \
+  --config-module finance_dl_config \
+  --config mybank \
+  --log DEBUG
+```
+
+```bash Run via inline JSON spec
+# No config file needed — specify everything inline as JSON
+python -m finance_dl.cli \
+  --spec '{"module": "finance_dl.ofx", "ofx_params": {"id": "1234", "org": "MYBANK", "fid": "1234", "url": "https://ofx.mybank.com", "username": "alice", "password": "s3cr3t", "account_id": "987654321", "account_type": "CHECKING"}, "output_directory": "/data/mybank"}'
+```
+
+```bash Run via entry point
+# Using the installed finance-dl command instead of python -m
+finance-dl \
+  --config-module finance_dl_config \
+  --config mybank
+```
+
+</CodeGroup>

@@ -1,0 +1,116 @@
+---
+title: "Install finance-dl from PyPI or Source"
+sidebarTitle: "Installation"
+description: "Install finance-dl via pip from PyPI or directly from a repository clone. Includes ChromeDriver setup for browser-based scrapers and Chrome version matching."
+---
+
+This page walks through every step needed to get finance-dl running on your machine — from the initial `pip install` to verifying that ChromeDriver and Chrome are correctly matched for browser-based scrapers. finance-dl requires **Python 3.5 or later** and installs two CLI entry points you can invoke directly from your terminal.
+
+<Steps>
+  <Step title="Install finance-dl">
+    **From PyPI (recommended):**
+
+    Install the latest published release directly with pip:
+
+    ```bash
+    pip install finance-dl
+    ```
+
+    **From a repository clone:**
+
+    If you want to use an unreleased version or contribute to the project, clone the repository and install from the local source:
+
+    ```bash
+    git clone https://github.com/jbms/finance-dl.git
+    cd finance-dl
+
+    # Standard install
+    pip install .
+
+    # Editable/development install (changes to source are reflected immediately)
+    pip install -e .
+    ```
+  </Step>
+
+  <Step title="Verify the CLI entry points">
+    The package installs two console scripts that are available on your `PATH` after installation:
+
+    | Command | Description |
+    |---|---|
+    | `finance-dl` | Main CLI entry point; equivalent to running `python -m finance_dl.cli` |
+    | `finance-dl-chromedriver-wrapper` | Wrapper that launches ChromeDriver with the correct environment for finance-dl |
+
+    Confirm the install succeeded:
+
+    ```bash
+    finance-dl --help
+    ```
+  </Step>
+
+  <Step title="Understand key dependencies">
+    pip resolves and installs all dependencies automatically. The table below describes what each major dependency does inside finance-dl:
+
+    | Package | Purpose |
+    |---|---|
+    | `selenium` | Browser automation for Selenium-based scrapers |
+    | `chromedriver-binary` | Bundles a ChromeDriver binary for use with Selenium |
+    | `selenium-requests` | Extends Selenium sessions with `requests`-style HTTP calls |
+    | `ofxclient` | OFX Direct Connect protocol client |
+    | `mintapi >= 1.31` | Mint.com API client used by `finance_dl.mint` |
+    | `bs4` | HTML parsing (BeautifulSoup 4) |
+    | `beancount >= 2.1.2` | Output format support for beancount-import integration |
+    | `ipython` | Powers the interactive debugging shell (`-i` flag) |
+    | `atomicwrites >= 1.3.0` | Safe atomic file writes to prevent data corruption |
+    | `jsonschema` | Configuration validation |
+    | `python-dateutil` | Flexible date parsing across scrapers |
+  </Step>
+
+  <Step title="Configure ChromeDriver for browser-based scrapers">
+    Selenium-based scrapers (Amazon, Mint, Venmo, and others) require Google Chrome and ChromeDriver to be correctly matched.
+
+    <Warning>
+      ChromeDriver and Chrome are tightly coupled — **their major version numbers must match**. The `chromedriver-binary` Python package bundles its own ChromeDriver binary, but by default it uses your system's installed Chrome. If the versions differ, you will see an error like:
+
+      ```
+      selenium.common.exceptions.SessionNotCreatedException: Message: session not created:
+      This version of ChromeDriver only supports Chrome version 97
+      Current browser version is 96.0.4664.45 with binary path /usr/bin/google-chrome
+      ```
+    </Warning>
+
+    You have three options to resolve version mismatches:
+
+    **Option 1 — Pin the `chromedriver-binary` package** to a version matching your installed Chrome:
+
+    ```bash
+    pip install "chromedriver-binary==97.*"
+    ```
+
+    **Option 2 — Manage your Chrome installation** to match the version bundled by `chromedriver-binary`. Check the bundled version with:
+
+    ```bash
+    python -c "import chromedriver_binary; print(chromedriver_binary.chromedriver_filename)"
+    ```
+
+    **Option 3 — Set `CHROMEDRIVER_CHROME_BINARY`** to point to a specific Chrome binary that matches the bundled ChromeDriver. You can set this system-wide or from within your config file:
+
+    ```bash
+    export CHROMEDRIVER_CHROME_BINARY=/usr/bin/google-chrome-beta
+    ```
+
+    Or directly in your `finance_dl_config.py`:
+
+    ```python
+    import os
+    os.environ["CHROMEDRIVER_CHROME_BINARY"] = "/usr/bin/google-chrome-beta"
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+With finance-dl installed, create your configuration module and run your first scrape:
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Write a config function and download your first batch of financial data in under 5 minutes.
+</Card>

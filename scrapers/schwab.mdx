@@ -1,0 +1,119 @@
+---
+title: "Download Charles Schwab Brokerage Data in CSV"
+sidebarTitle: "Schwab"
+description: "Scrape Charles Schwab brokerage transaction history, positions, and cost-basis lot data using finance_dl.schwab. Saves CSV files per account with date ranges."
+---
+
+The `finance_dl.schwab` scraper automates downloading transaction history, daily positions, and optional cost-basis lot details from Charles Schwab brokerage and banking accounts. It uses Selenium and ChromeDriver to authenticate with the Schwab web interface and then calls internal Schwab export APIs to pull structured CSV data for each account found in your profile.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dict containing your Schwab login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Schwab login username.
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      Your Schwab login password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path to the local directory where downloaded CSV files will be written. The directory will be created if it does not exist. A subdirectory is created for each account number found in your Schwab profile.
+</ParamField>
+
+<ParamField path="min_start_date" type="datetime.date" required>
+  The earliest date from which to retrieve transaction history. If no existing files are present for an account in the output directory, data is fetched starting from this date. On subsequent runs, the scraper advances automatically from the last downloaded date.
+</ParamField>
+
+<ParamField path="lot_details" type="bool" default="False">
+  When set to `True`, the scraper navigates to the Positions page after downloading transactions and downloads full cost-basis lot detail CSV files for every position in each brokerage account. Lot files are saved in a `lots/YYYY-MM-DD/` subdirectory inside the positions directory. Has no effect on checking accounts.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. Reusing a profile avoids re-entering two-factor authentication codes on each run. The path must be dedicated to this single configuration and must not be your normal browser profile. If omitted, a fresh temporary profile is used every time.
+</ParamField>
+
+## Output Format
+
+The scraper creates a subdirectory per account number inside `output_directory`. Within each account directory:
+
+**Transaction CSV files** are named using the date range they cover:
+
+```
+<output_directory>/
+  <account_number>/
+    2024-01-01_2024-06-30.csv
+    2024-07-01_2024-12-31.csv
+    positions/
+      2025-01-15.csv
+      lots/
+        2025-01-15/
+          AAPL.csv
+          MSFT.csv
+```
+
+| File pattern | Contents |
+|---|---|
+| `YYYY-MM-DD_YYYY-MM-DD.csv` | Transaction history from start date to end date |
+| `positions/YYYY-MM-DD.csv` | Full positions snapshot as of that date |
+| `positions/lots/YYYY-MM-DD/<SYMBOL>.csv` | Per-symbol cost-basis lot detail (only when `lot_details=True`) |
+
+The scraper downloads data up to yesterday's date to avoid gaps from intraday transaction processing. On each subsequent run it resumes from the day after the most recent end-date found in existing transaction files.
+
+## Configuration Example
+
+<Note>
+  Setting `headless=False` is strongly recommended for Schwab. The Schwab login page loads inside an iframe and may trigger additional security checks that are easier to handle in a visible browser window.
+</Note>
+
+```python
+import os
+
+data_dir = os.path.expanduser('~/financial-data')
+profile_dir = os.path.expanduser('~/chrome-profiles')
+
+def CONFIG_schwab():
+    return dict(
+        module='finance_dl.schwab',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'schwab'),
+        min_start_date=datetime.date(2020, 1, 1),
+        profile_dir=profile_dir,
+        headless=False,
+    )
+```
+
+To also download cost-basis lot details for all positions, add `lot_details=True`:
+
+```python
+def CONFIG_schwab():
+    return dict(
+        module='finance_dl.schwab',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'schwab'),
+        min_start_date=datetime.date(2020, 1, 1),
+        lot_details=True,
+        profile_dir=profile_dir,
+        headless=False,
+    )
+```
+
+## Interactive Shell
+
+To run the Schwab scraper from the interactive shell:
+
+```python
+self.run()
+```
+
+This launches the full scraper flow: loading the transaction history page, logging in if needed, and iterating over all accounts to download transactions, positions, and (if configured) lot details.

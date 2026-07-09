@@ -1,28 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "finance-dl",
+  "projectType": "cli-tool",
+  "projectName": "finance-dl",
+  "projectDescription": "A Python toolkit for automatically downloading and scraping personal financial data from banks, brokerages, and other financial institutions, designed for use with beancount-import.",
   "theme": "palm",
-  "colors": {
-    "primary": "#147cfc",
-    "light": "#5cb5fc",
-    "dark": "#0b4d9c"
-  },
-  "favicon": "https://media.brand.dev/43965cd1-cbff-4eb2-83dd-78017580669e.png",
-  "logo": {
-    "light": "https://media.brand.dev/c1e3ddf5-a2cf-4ac0-b6cb-c7427ba56bb9.svg",
-    "dark": "https://media.brand.dev/c1e3ddf5-a2cf-4ac0-b6cb-c7427ba56bb9.svg"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/jbms/finance-dl"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/jbms/finance-dl"
-    }
-  },
+  "primaryColor": "#147cfc",
+  "lightColor": "#0b4d9c",
+  "darkColor": "#5cb5fc",
   "navigation": {
     "tabs": [
       {
@@ -109,5 +92,28 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Automated scraping of financial data from 18+ institutions using Selenium/Chrome",
+    "OFX protocol support for direct bank connections without a browser",
+    "Parallel update runner with per-config logging and status tracking",
+    "Interactive IPython shell for debugging and manual scraping steps",
+    "Persistent Chrome profiles to avoid repeated MFA login flows",
+    "Automatic retry with visible browser on headless scraping failures",
+    "Designed to integrate with beancount-import for double-entry bookkeeping",
+    "Atomic file writes to prevent corrupt output on failures"
+  ],
+  "publicApiSurface": [
+    "finance-dl CLI (finance_dl.cli:main)",
+    "finance-dl-chromedriver-wrapper CLI (finance_dl.chromedriver_wrapper:main)",
+    "python -m finance_dl.cli --config-module <module> --config <name>",
+    "python -m finance_dl.update --config-module <module> --log-dir <dir> status",
+    "python -m finance_dl.update --config-module <module> --log-dir <dir> update [--all]",
+    "CONFIG_<name>() function convention in config module",
+    "finance_dl.ofx.run(ofx_params, output_directory, **kwargs)",
+    "finance_dl.scrape_lib.Scraper class",
+    "finance_dl.scrape_lib.temp_scraper context manager",
+    "finance_dl.scrape_lib.run_with_scraper(scraper_class, **kwargs)",
+    "finance_dl.scrape_lib.interact_with_scraper context manager"
+  ]
 }

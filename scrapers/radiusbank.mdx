@@ -1,0 +1,90 @@
+---
+title: "Radius Bank Transactions: QFX Download via Selenium"
+sidebarTitle: "Radius Bank"
+description: "Scrape Radius Bank transaction data with finance_dl.radiusbank. Downloads the current year as a QFX file; re-fetches the prior year in early January."
+---
+
+The `finance_dl.radiusbank` scraper uses `selenium` and `chromedriver` to log into the Radius Bank web portal and download transaction data in QFX format. On each run it downloads all transactions for the current calendar year. Around the New Year transition (within 10 days of January 1st), it also downloads the previous year's transactions to capture any pending transactions that may have posted late. This page covers all configuration parameters, how to locate your `account_uid`, output format, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Radius Bank login credentials and account identifier.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Radius Bank account username.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Radius Bank account password.
+    </ParamField>
+
+    <ParamField path="account_uid" type="string" required>
+      The UUID that identifies your account in the Radius Bank portal, in the format `XXXXXX-XXXX-XXXX-XXXXXXXXXXXX`. See [Finding Your Account UID](#finding-your-account-uid) below.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where the QFX output file will be written. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+
+  <Note>
+    It is **highly recommended** to set `profile_dir`. Without it, Radius Bank's multi-factor authentication prompt will appear on every run, requiring manual intervention each time.
+  </Note>
+</ParamField>
+
+<ParamField path="headless" type="bool">
+  When `True`, Chrome runs without a visible window. When `False`, the browser window is shown — useful for debugging login issues or MFA prompts. Defaults to the global scraper default.
+</ParamField>
+
+## Output Format
+
+The scraper downloads a QFX file covering the current calendar year's transactions. The existing file for the current year is overwritten on each run. When run within 10 days of January 1st, an additional QFX file covering the previous calendar year is also downloaded, to ensure that any transactions that were pending at year-end and later posted are captured.
+
+## Finding Your Account UID
+
+The `account_uid` is not displayed in the Radius Bank interface directly. To find it:
+
+1. Log into the Radius Bank web portal.
+2. Navigate to your account's transactions page.
+3. Open your browser's page source (Ctrl+U or right-click → View Page Source).
+4. Search the source for the pattern:
+
+```
+download-url="/accounts/XXXXXX-XXXX-XXXX-XXXXXXXXXXXX"
+```
+
+The UUID in that attribute is your `account_uid`.
+
+## Config Example
+
+```python
+def CONFIG_radius():
+    return dict(
+        module='finance_dl.radius',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+            'account_uid': 'XXXXXX-XXXX-XXXX-XXXXXXXXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'radius'),
+
+        # profile_dir is optional but highly recommended to avoid having to
+        # enter multi-factor authentication code each time.
+        profile_dir=os.path.join(profile_dir, 'chrome'),
+        headless=False,
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper by running:
+
+```python
+self.run()
+```

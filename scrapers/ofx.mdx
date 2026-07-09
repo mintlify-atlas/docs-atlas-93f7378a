@@ -1,0 +1,177 @@
+---
+title: "OFX Protocol: Direct Bank Connections Without a Browser"
+sidebarTitle: "OFX"
+description: "Download transactions and balances from any OFX-compatible institution using finance_dl.ofx. No browser needed — connects directly via the OFX protocol."
+---
+
+The `finance_dl.ofx` scraper connects directly to financial institutions that support the OFX protocol using the `ofxclient` Python package — no browser or Selenium required. It downloads transaction and balance data for every account accessible under your credentials, automatically fills historical gaps using repeated requests, and always fetches up to the present date. This page covers all configuration parameters, the output file naming scheme, smart download behavior, how to find OFX connection details for your institution, and how to use the interactive shell.
+
+## Configuration Parameters
+
+<ParamField path="ofx_params" type="dict" required>
+  A dictionary containing all connection details for your financial institution. All fields come from [ofxhome.com](https://www.ofxhome.com/).
+
+  <Expandable title="ofx_params fields">
+    <ParamField path="id" type="string" required>
+      The FI Id value for your institution. Look this up at [ofxhome.com](https://www.ofxhome.com/).
+    </ParamField>
+
+    <ParamField path="org" type="string" required>
+      The FI Org value for your institution. Look this up at [ofxhome.com](https://www.ofxhome.com/).
+    </ParamField>
+
+    <ParamField path="url" type="string" required>
+      The FI URL value for your institution. Look this up at [ofxhome.com](https://www.ofxhome.com/).
+    </ParamField>
+
+    <ParamField path="username" type="string" required>
+      Your username for the institution.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your password for the institution.
+    </ParamField>
+
+    <ParamField path="broker_id" type="string">
+      Optional FI Broker Id value. Available from [ofxhome.com](https://www.ofxhome.com/) for institutions that require it.
+    </ParamField>
+
+    <ParamField path="client_args" type="dict">
+      Optional dictionary of additional arguments passed directly to the `ofxclient` library. Some institutions (such as Chase) require a minimum OFX version and a unique client ID:
+
+      ```python
+      'client_args': {
+          'ofx_version': '103',
+          'id': '64f0e0bfe04f1a2d32cbddc8d30a3017',  # openssl rand -hex 16
+      }
+      ```
+
+      The `id` field should be a random 16-byte hex string. Generate one with `openssl rand -hex 16`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where OFX files will be written. The directory (and any account sub-directories) will be created automatically if they do not exist.
+</ParamField>
+
+<ParamField path="acct_dir_map" type="dict">
+  An optional mapping of account numbers (as they appear in the OFX output) to human-readable directory names. When provided, the mapped name is used **exactly** as the sub-directory name — if it is not a valid directory name, finance-dl will fail. Unmapped accounts use their account number directly.
+
+  ```python
+  acct_dir_map={
+      '880012345': 'Roth IRA',
+      '880045678': 'FooCorp 401(k)',
+      '880078901': 'Taxable Account',
+  }
+  ```
+</ParamField>
+
+<ParamField path="overlap_days" type="int" default="2">
+  Number of days of overlap when issuing follow-up requests to fill gaps in downloaded data. Overlapping ranges make it less likely that a transaction is missed; duplicates can be filtered during processing. The default of `2` is suitable in almost all cases.
+</ParamField>
+
+<ParamField path="min_start_date" type="datetime.date" default="1990-01-01">
+  The earliest date from which to attempt data retrieval when no files have been downloaded yet. A binary search is performed starting from this date to find the oldest point at which the server returns a valid response. The default covers essentially all modern financial history.
+</ParamField>
+
+<ParamField path="min_days_retrieved" type="int" default="20">
+  The minimum number of days the server is expected to return per request. If the most recent downloaded range starts no more than this many days before today, no additional request is issued. The default of `20` is appropriate because most OFX servers support at least 30 days per request.
+</ParamField>
+
+## Output Format
+
+Each account's data is stored in its own sub-directory of `output_directory`. The sub-directory name is the account number, or the mapped name from `acct_dir_map` if one is provided.
+
+Within each account sub-directory, files are named using the pattern:
+
+```
+<start-date>-<end-date>--<fetch-timestamp>.ofx
+```
+
+- `<start-date>` and `<end-date>` reflect the `DTSTART` and `DTEND` fields in the OFX file, formatted as `YYYYMMDD`.
+- `<fetch-timestamp>` is the Unix epoch time in seconds at the moment of download.
+
+**Example:** `19991201-20000115--1705000000.ofx`
+
+## Smart Download Behavior
+
+Because many institutions cap the number of days returnable in a single OFX request, `finance_dl.ofx` issues multiple requests automatically:
+
+1. **First run — binary search:** When no files exist for an account, a binary search is performed from `min_start_date` toward today to find the earliest date the server will honor. Once found, that batch is saved and subsequent requests fill forward.
+2. **Gap filling:** On every run, the scraper scans existing files for date-range gaps and issues requests to fill them, using `overlap_days` of backwards overlap.
+3. **Present-day fetch:** At least one request reaching up to today's date is always issued, so the most recent transactions are always retrieved.
+
+## Finding Your Institution's OFX Parameters
+
+Visit [ofxhome.com](https://www.ofxhome.com/) and search for your financial institution by name. The listing shows the `FI Id`, `FI Org`, and `FI Url` values to use in `ofx_params`. Not all institutions support OFX direct connect — if your institution is not listed, or the connection fails, use the institution's dedicated Selenium scraper instead.
+
+<Note>
+  **Discover Card users:** Discover enforces a minimum 5-second delay between OFX requests. The `finance_dl.ofx` module detects Discover automatically (by checking `org` for the string `"Discover"`) and adds the required delay. No extra configuration is needed.
+</Note>
+
+## Config Example
+
+```python
+def CONFIG_vanguard():
+    # To determine the correct values for `id`, `org`, and `url` for your
+    # financial institution, search on https://www.ofxhome.com/
+    ofx_params = {
+        'id': '15103',
+        'org': 'Vanguard',
+        'url': 'https://vesnc.vanguard.com/us/OfxDirectConnectServlet',
+        'username': 'XXXXXX',
+        'password': 'XXXXXX',
+    }
+    return dict(
+        module='finance_dl.ofx',
+        ofx_params=ofx_params,
+        output_directory=os.path.join(data_dir, 'vanguard'),
+        acct_dir_map={
+            '880012345': 'Roth IRA',
+            '880045678': 'FooCorp 401(k)',
+            '880078901': 'Taxable Account',
+        }
+    )
+```
+
+### Chase / Advanced `client_args` Example
+
+Chase and some other institutions require OFX version 103 and a unique client ID. Generate the ID once with `openssl rand -hex 16` and reuse it on every run:
+
+```python
+def CONFIG_chase():
+    ofx_params = {
+        'id': 'YOUR_CHASE_FI_ID',        # from ofxhome.com
+        'org': 'B1',
+        'url': 'https://ofx.chase.com',
+        'username': 'XXXXXX',
+        'password': 'XXXXXX',
+        'client_args': {
+            'ofx_version': '103',
+            'id': '64f0e0bfe04f1a2d32cbddc8d30a3017',  # openssl rand -hex 16
+        },
+    }
+    return dict(
+        module='finance_dl.ofx',
+        ofx_params=ofx_params,
+        output_directory=os.path.join(data_dir, 'chase'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, the `interactive` context manager yields the following variables:
+
+| Variable | Description |
+|---|---|
+| `ofx_params` | The `ofx_params` dict passed in from the config. |
+| `output_directory` | The `output_directory` string passed in from the config. |
+| `inst` | A connected `ofxclient.institution.Institution` object, already authenticated. |
+
+You can use `inst` to explore accounts or trigger downloads manually:
+
+```python
+# List all accounts visible to these credentials
+inst.accounts()
+```

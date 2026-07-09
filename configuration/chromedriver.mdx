@@ -1,0 +1,115 @@
+---
+title: "ChromeDriver Setup and Version Management"
+sidebarTitle: "ChromeDriver"
+description: "finance-dl bundles ChromeDriver via chromedriver-binary. Learn how to keep ChromeDriver and Chrome versions in sync and use a custom Chrome binary."
+---
+
+finance-dl drives a real Chrome browser for all of its Selenium-based scrapers, and that requires a working ChromeDriver binary that precisely matches the installed version of Chrome. This page explains how ChromeDriver is supplied, why version mismatches happen, and how to resolve them — along with the logging and headless-mode options available during both normal and debug runs.
+
+## How ChromeDriver Is Supplied
+
+finance-dl does **not** use a system-installed `chromedriver` binary. Instead, it uses ChromeDriver from the [`chromedriver_binary`](https://pypi.org/project/chromedriver-binary/) Python package, which is installed automatically as a dependency of `finance-dl`. The `chromedriver_binary` package ships a pinned ChromeDriver binary appropriate for a specific major Chrome version.
+
+The ChromeDriver binary is exposed to finance-dl through the `finance-dl-chromedriver-wrapper` console script, which is the default `chromedriver_bin` value passed to every scraper's `Scraper` class in `scrape_lib.py`.
+
+ChromeDriver, by default, launches **your system's installed version of Chrome** — not a bundled one. This is the source of most version-mismatch problems.
+
+## Version Mismatch Errors
+
+<Warning>
+ChromeDriver and Chrome are tightly coupled: a given ChromeDriver release only supports a single major Chrome version. If the two versions do not match, every Selenium-based scraper will fail immediately with an error similar to:
+
+```
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created:
+This version of ChromeDriver only supports Chrome version 97
+Current browser version is 96.0.4664.45 with binary path /usr/bin/google-chrome
+```
+
+This mismatch can occur silently after either Chrome or the `chromedriver_binary` package is updated.
+</Warning>
+
+## Resolving a Version Mismatch
+
+<Steps>
+  <Step title="Pin chromedriver-binary to match your Chrome">
+    Find your installed Chrome version (`google-chrome --version`) and install the matching `chromedriver-binary` release. The package uses a version number that mirrors Chrome's major version:
+
+    ```bash
+    pip install "chromedriver-binary==97.*"
+    ```
+
+    This is the most reliable long-term approach when you control Chrome through your system package manager and update it deliberately.
+  </Step>
+
+  <Step title="Pin Chrome to match chromedriver-binary">
+    Check which ChromeDriver version was installed:
+
+    ```bash
+    finance-dl-chromedriver-wrapper --version
+    ```
+
+    Then install or pin the Chrome release that matches that major version. On Debian/Ubuntu, you can hold a specific Chrome version with `apt-mark hold google-chrome-stable` after installing the desired release. Use this approach when you prefer to let the Python dependency manage ChromeDriver and keep Chrome in lockstep.
+  </Step>
+
+  <Step title="Point ChromeDriver at a matching Chrome binary">
+    If you cannot change your default system Chrome, install a second Chrome release (for example, `google-chrome-beta` or a manually downloaded build) that matches the `chromedriver_binary` version. Then tell ChromeDriver to use it by setting the `CHROMEDRIVER_CHROME_BINARY` environment variable.
+
+    You can set this variable at the top of your finance-dl config file so it is applied automatically on every run:
+
+    ```python
+    import os
+
+    os.environ['CHROMEDRIVER_CHROME_BINARY'] = '/usr/bin/google-chrome-beta'
+    ```
+
+    `scrape_lib.py` reads this variable directly when building Chrome options:
+
+    ```python
+    chrome_options.binary_location = os.getenv("CHROMEDRIVER_CHROME_BINARY")
+    ```
+
+    This approach is useful on systems where you cannot easily change the default Chrome installation (e.g., shared machines or CI environments).
+  </Step>
+</Steps>
+
+## ChromeDriver Logs
+
+ChromeDriver writes verbose logs to a file controlled by the `TMPLOG` environment variable. The default path is `/tmp/chromedriver.log`. To redirect logs to a different location, set the variable before running finance-dl:
+
+```bash
+TMPLOG=/var/log/finance_dl/chromedriver.log python -m finance_dl.cli ...
+```
+
+Or set it from within your config file:
+
+```python
+import os
+os.environ['TMPLOG'] = '/var/log/finance_dl/chromedriver.log'
+```
+
+The log file records every ChromeDriver command and response, making it the first place to look when a scraper fails during browser startup or navigation.
+
+## Headless Mode and the `--visible` Flag
+
+All Selenium-based scrapers run **headless** (no visible window) by default. This is safe for unattended, automated execution. You can override this behaviour at three levels:
+
+1. **Per-config** — set `headless=False` in an individual `CONFIG_` dict. This is appropriate for scrapers like `finance_dl.anthem` or `finance_dl.stockplanconnect` that require manual interaction with the browser:
+
+   ```python
+   def CONFIG_anthem():
+       return dict(
+           module='finance_dl.anthem',
+           login_url='https://anthem.com',
+           output_directory=os.path.join(data_dir, 'anthem'),
+           profile_dir=os.path.join(profile_dir, 'anthem'),
+           headless=False,
+       )
+   ```
+
+2. **At the CLI** — pass `--visible` to the `finance_dl.cli` command to force a visible browser for that single run, regardless of what the config dict specifies. `--interactive` (IPython shell mode) also implies `--visible`.
+
+3. **Automatic retry** — if a headless run fails, finance-dl automatically retries with the browser visible. This lets you complete a manual step (such as entering an MFA code) on the retry attempt, after which the scraper continues normally.
+
+<Tip>
+The automatic retry-with-visible-browser behaviour is built into `run_with_scraper` in `scrape_lib.py`. On the first failure of a headless run, `headless` is set to `False` and the entire scrape is re-attempted. You do not need to configure anything to benefit from this — it applies to every Selenium-based scraper automatically. Use `profile_dir` to persist the authenticated session so that subsequent scheduled runs succeed headlessly without prompting you again.
+</Tip>

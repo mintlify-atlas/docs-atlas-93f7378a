@@ -1,0 +1,201 @@
+---
+title: "Automate Multiple Scrapers with finance-dl update"
+sidebarTitle: "Update Tool"
+description: "Use finance-dl.update to run multiple scrapers in parallel, track last-update timestamps, skip recently-updated configs, and log output per configuration."
+---
+
+finance-dl includes a batch automation tool — `finance_dl.update` — designed for running many scraper configurations on a schedule. It tracks when each configuration was last successfully run, skips ones that are still fresh, runs the rest in parallel, and writes per-configuration log files so you can audit any failures. This page explains both the `status` and `update` subcommands and their flags.
+
+## Prerequisites
+
+The update tool requires a **log directory** to exist before you run it. Create one now if you haven't already:
+
+```bash
+mkdir logs
+```
+
+<Tip>
+  Keep your log directory under version control or in a persistent location. The
+  `.lastupdate` files it contains are the sole record of when each scraper last
+  succeeded — deleting them will cause all configurations to be treated as never
+  run.
+</Tip>
+
+## Base Flags
+
+These flags come before the subcommand and are required for both `status` and `update`:
+
+<ParamField body="--config-module" type="string" required>
+  The importable Python module that defines your `CONFIG_<name>` functions —
+  the same module you pass to `finance_dl.cli`.
+</ParamField>
+
+<ParamField body="--log-dir" type="string" required>
+  Path to the directory where log and timestamp files are written. The tool
+  creates two files per configuration inside this directory:
+
+  - `<config>.txt` — full stdout and stderr output from the scraper run
+  - `<config>.lastupdate` — empty file whose modification time records the last
+    successful run
+</ParamField>
+
+---
+
+## `status` Subcommand
+
+The `status` subcommand prints a table showing every configuration in the module and when it was last successfully updated.
+
+```bash
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  status
+```
+
+Configurations are sorted by last update time, oldest first. Ones that have never been run show `NEVER`. All others display a human-readable timestamp and how long ago the run completed (for example, `3 minutes ago` or `2 days ago`).
+
+**Example output:**
+
+```
+     mybank: NEVER
+   vanguard: NEVER
+ mybank_401k: Mon Jan 13 08:12:04 2025 (47 minutes ago)
+```
+
+---
+
+## `update` Subcommand
+
+The `update` subcommand runs one or more configurations, capturing their output and recording success timestamps.
+
+### Selecting Configurations to Run
+
+<CodeGroup>
+
+```bash Update a single config
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  update mybank
+```
+
+```bash Update multiple configs
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  update mybank vanguard mybank_401k
+```
+
+```bash Update all configs
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  update --all
+```
+
+</CodeGroup>
+
+### Update Flags
+
+<ParamField body="config" type="string[]">
+  One or more configuration names to update (positional arguments). Each name
+  refers to a `CONFIG_<name>` function in the config module. Can be combined
+  with `--all`, though specifying names is redundant if `--all` is set.
+</ParamField>
+
+<ParamField body="--all, -a" type="boolean" default="false">
+  Update every configuration found in the config module by scanning for
+  functions whose names start with `CONFIG_`.
+</ParamField>
+
+<ParamField body="--force, -f" type="boolean" default="false">
+  Run each configuration even if it was updated within the last 24 hours.
+  Without this flag, recently updated configurations are silently skipped.
+</ParamField>
+
+<ParamField body="--parallelism, -p" type="integer" default="4">
+  Maximum number of configurations to run concurrently. Each configuration is
+  launched as a subprocess; up to this many run simultaneously using a thread
+  pool executor.
+</ParamField>
+
+<Note>
+  By default, any configuration whose `<config>.lastupdate` file is less than
+  24 hours old is **skipped** with a message like
+  `mybank: SKIPPING (updated 47 minutes ago)`. Use `--force` to override this
+  and re-run regardless of recency.
+</Note>
+
+### What Happens During a Run
+
+For each selected (non-skipped) configuration, the update tool:
+
+1. Launches a subprocess: `python -m finance_dl.cli --config-module <module> -c <config>`
+2. Streams stdout and stderr from that subprocess to the terminal with a progress prefix.
+3. Writes all output to `<log-dir>/<config>.txt`.
+4. On a zero exit code, touches `<log-dir>/<config>.lastupdate` to record the success time.
+5. On a non-zero exit code or exception, prints a `FAILED` message and leaves the `.lastupdate` file unchanged.
+
+Progress lines follow this format:
+
+```
+[completed/total] config_name [elapsed seconds elapsed] message
+```
+
+For example:
+
+```
+[0/3] mybank [0s elapsed] starting
+[0/3] mybank [4s elapsed] 2025-01-13 08:15:02 cli.py:45 [INFO] Connecting...
+[1/3] mybank [12s elapsed] SUCCESS
+[1/3] vanguard [0s elapsed] starting
+```
+
+---
+
+## Output Files
+
+| File | Purpose |
+|---|---|
+| `logs/<config>.txt` | Full log output (stdout + stderr) from the scraper subprocess |
+| `logs/<config>.lastupdate` | Empty file; its `mtime` is used as the last-success timestamp |
+
+---
+
+## Complete Workflow Example
+
+The following is a typical first-run workflow taken from the finance-dl README:
+
+```bash
+# 1. Create the log directory
+mkdir logs
+
+# 2. Check initial status — all configs will show NEVER
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  status
+
+# 3. Run a single config to verify your setup
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  update myconfig
+
+# 4. Inspect the log if it failed
+cat logs/myconfig.txt
+
+# 5. Run all configs once everything looks good
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  update --all
+
+# 6. Check status again to confirm success timestamps
+python -m finance_dl.update \
+  --config-module finance_dl_config \
+  --log-dir logs \
+  status
+```
+
+For regular automation, add step 5 to a cron job or systemd timer. The 24-hour skip window means it is safe to schedule runs more frequently than once a day — configurations that already succeeded recently will be skipped automatically.

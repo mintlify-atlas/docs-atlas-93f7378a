@@ -1,0 +1,91 @@
+---
+title: "Download WaveApps Receipts and Transaction Data"
+sidebarTitle: "WaveApps"
+description: "Fetch receipt images and extracted transaction JSON from WaveApps using the REST API via finance_dl.waveapps. Supports multiple businesses and OAuth2 tokens."
+---
+
+The `finance_dl.waveapps` scraper retrieves receipt images and extracted transaction data from [WaveApps](https://www.waveapps.com) via the official WaveApps REST API. Unlike browser-based scrapers, this module communicates directly with the API using a Full Access token or OAuth2 credentials, making it faster and more reliable. All businesses accessible under the provided credentials are downloaded automatically.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing authentication credentials. You may authenticate with either a Full Access token or OAuth2 credentials.
+
+  <Expandable title="Token authentication (recommended)">
+    <ParamField path="token" type="string" required>
+      A Full Access token generated from the WaveApps developer portal.
+
+      **How to obtain a token:**
+      1. Sign in at [waveapps.com](https://www.waveapps.com).
+      2. Visit the [Manage Applications](https://developer.waveapps.com/hc/en-us/articles/360019762711) page.
+      3. Choose **Create an application**.
+      4. After the application is created, choose **Create token**.
+    </ParamField>
+  </Expandable>
+
+  <Expandable title="OAuth2 credentials (alternative)">
+    <ParamField path="client_id" type="string" required>
+      Your OAuth2 application client ID.
+    </ParamField>
+
+    <ParamField path="username" type="string" required>
+      Your WaveApps account username (email address).
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your WaveApps account password.
+    </ParamField>
+
+    <Note>
+      Signing in with a Google account is **not** supported for OAuth2 credentials. You must use a username and password registered directly with WaveApps.
+    </Note>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where output files will be written. The directory is created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="use_business_directory" type="bool">
+  When `True`, a separate subdirectory named after the business ID is created inside `output_directory` for each business. This supplements the existing per-business-name subdirectory structure.
+</ParamField>
+
+<ParamField path="active_only" type="bool">
+  When `True`, deleted receipts are skipped and only active receipts are downloaded.
+</ParamField>
+
+## Output Format
+
+Receipts for all businesses accessible with the provided credentials are downloaded. Within `output_directory`, a subdirectory is created for each business, named after the business name.
+
+Inside each business subdirectory, the following files are written per receipt:
+
+| File | Description |
+|---|---|
+| `<receipt-id>.json` | JSON data returned by the WaveApps API for the receipt. |
+| `<receipt-id>.jpeg` | Primary receipt image in full resolution. |
+| `<receipt-id>.01.jpeg`, `<receipt-id>.02.jpeg`, … | Additional images, if present. |
+
+The JSON file contains at minimum the following fields:
+
+| Field | Description |
+|---|---|
+| `id` | Unique receipt identifier (matches `<receipt-id>` in the filename). |
+| `date` | Date of the receipt. |
+| `merchant` | Merchant name. |
+| `note` | Optional note attached to the receipt. |
+| `total` | Total amount. |
+| `currency_code` | ISO currency code (e.g., `USD`). |
+
+## Config Example
+
+```python
+def CONFIG_waveapps():
+    return dict(
+        module='finance_dl.waveapps',
+        credentials=dict(
+            token='XXXXXXXX',
+        ),
+        output_directory=os.path.join(data_dir, 'waveapps'),
+    )
+```

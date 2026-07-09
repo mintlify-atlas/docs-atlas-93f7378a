@@ -1,0 +1,82 @@
+---
+title: "Download Mint.com Transactions and Account Balances"
+sidebarTitle: "Mint"
+description: "Scrape Mint.com transaction history and account balance data using finance_dl.mint with mintapi. Merges new CSV data without duplicates using multi-field deduplication."
+---
+
+The `finance_dl.mint` scraper downloads your transaction history and account balance data from [Mint.com](https://mint.intuit.com) using the `mintapi` Python package alongside `selenium` and `chromedriver`. This page covers all configuration parameters, the output file format, deduplication behavior for merged files, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Mint.com login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Mint.com account username (typically your email address).
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Mint.com account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where output files will be written. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+
+  <Note>
+    It is **highly recommended** to set `profile_dir`. Without it, Mint's multi-factor authentication challenge will appear on every run, requiring manual intervention each time.
+  </Note>
+</ParamField>
+
+<ParamField path="merge_files" type="list[string]">
+  A list of paths to additional CSV files containing transactions in the same column format as the `mint.csv` output file. When provided, these files are merged with `mint.csv` and the result is written to `mint-merged.csv` in the `output_directory`. Omit this parameter entirely if you do not need merging.
+</ParamField>
+
+<ParamField path="skip_refresh" type="bool" default="False">
+  When `True`, the scraper will not wait for all linked accounts to finish refreshing their data before downloading transactions. Set this if you want faster runs and do not need fully up-to-date balances.
+</ParamField>
+
+## Output Format
+
+The scraper writes the following files under `output_directory`:
+
+| File | Description |
+|---|---|
+| `mint.csv` | Transaction data in Mint's standard CSV export format, excluding pending and duplicate transactions. |
+| `mint-merged.csv` | Present only when `merge_files` is specified. Contains the deduplicated union of `mint.csv` and all files listed in `merge_files`, sorted by date descending. |
+| `balances.%Y-%m-%dT%H%M%S%z.csv` | Timestamped snapshot of account balance data, written on each successful run. Columns: `Name`, `Currency`, `Balance`, `Last Updated`, `State`, `Last Transaction`. |
+
+### Deduplication Logic
+
+Because the Mint CSV format has no unique transaction identifier, legitimate duplicate transactions (e.g., two identical coffee purchases on the same day at the same merchant) can produce identical rows. The merge algorithm handles this correctly:
+
+For each unique combination of `Date`, `Original Description`, `Amount`, `Transaction Type`, and `Account Name`, the merged output contains **N copies** of that row, where **N is the maximum number of times that row appears in any single input file**. This means a transaction that appears twice in `mint.csv` and once in a `merge_files` entry will appear twice in `mint-merged.csv`.
+
+## Config Example
+
+```python
+def CONFIG_mint():
+    return dict(
+        module='finance_dl.mint',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'mint'),
+        profile_dir=os.path.join(profile_dir, 'mint'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, run the scraper directly with:
+
+```python
+run(output_directory=output_directory, profile_dir=profile_dir, credentials=credentials)
+```

@@ -1,0 +1,109 @@
+---
+title: "Download Discover Card Transactions via OFX or Web"
+sidebarTitle: "Discover"
+description: "Download Discover Card transactions via OFX direct connect or the finance_dl.discover web scraper. Both produce an OFX file of your full card history."
+---
+
+Discover Card transactions can be downloaded using two different approaches in finance-dl. The first uses the `finance_dl.ofx` module to connect directly via the OFX protocol — no browser needed. The second uses the `finance_dl.discover` Selenium scraper, which logs into the Discover website and downloads an OFX file through the web interface. This page covers both approaches, their configuration parameters, output format, and how to invoke the web scraper from the interactive shell.
+
+## Approach 1: OFX Direct Connect (Recommended)
+
+When the OFX connection is working, this approach is simpler and more reliable. It uses `finance_dl.ofx` with Discover-specific `ofx_params`. Discover enforces a minimum 5-second delay between OFX requests; the module detects this automatically and inserts the required wait — no extra configuration is needed.
+
+For full details on OFX configuration parameters (including `acct_dir_map`, `overlap_days`, and `min_start_date`), see the [OFX scraper documentation](/scrapers/ofx).
+
+### OFX Config Example
+
+```python
+def CONFIG_discover():
+    ofx_params = {
+        'description': 'Discover Credit Card',
+        'id': '9625',
+        'org': 'Discover Card Account Center',
+        'url': 'https://ofx.discovercard.com:443',
+        'username': 'XXXXXX',
+        'password': 'XXXXXX',
+        'client_args': {
+            'ofx_version': '102',
+            'app_version': '2700',
+        },
+    }
+    return dict(
+        module='finance_dl.ofx',
+        ofx_params=ofx_params,
+        output_directory=os.path.join(data_dir, 'discover'),
+    )
+```
+
+---
+
+## Approach 2: Web Scraper (`finance_dl.discover`)
+
+If the OFX connection is unavailable or unreliable, the `finance_dl.discover` module uses `selenium` and `chromedriver` to log into the Discover web portal and download an OFX file directly.
+
+### Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Discover login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Discover account username.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Discover account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where the OFX output file will be written. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+
+  <Note>
+    It is **highly recommended** to set `profile_dir`. Without it, Discover's multi-factor authentication prompt will appear on every run, requiring manual intervention each time.
+  </Note>
+</ParamField>
+
+<ParamField path="headless" type="bool" default="True">
+  When `True`, Chrome runs without a visible window. Set to `False` to show the browser — useful for debugging login or MFA issues.
+</ParamField>
+
+### Output Format
+
+The scraper downloads a single OFX file covering all transactions in the current calendar year and writes it to `output_directory`.
+
+<Note>
+  The `finance_dl.discover` web scraper also enforces a 5-second delay between requests to comply with Discover's rate limits. This delay is built in and requires no configuration.
+</Note>
+
+### Web Scraper Config Example
+
+```python
+def CONFIG_discover_web():
+    return dict(
+        module='finance_dl.discover',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'discover'),
+
+        # profile_dir is optional but highly recommended to avoid having to
+        # enter multi-factor authentication code each time.
+        profile_dir=profile_dir,
+        headless=True,
+    )
+```
+
+### Interactive Shell
+
+From the finance-dl interactive shell, start the web scraper by running:
+
+```python
+self.run()
+```

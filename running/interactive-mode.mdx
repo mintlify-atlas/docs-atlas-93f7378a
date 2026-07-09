@@ -1,0 +1,152 @@
+---
+title: "Debug Scrapers with finance-dl Interactive Mode"
+sidebarTitle: "Interactive Mode"
+description: "Launch an IPython shell to manually drive scrapers, inspect page state, debug login flows, and complete MFA challenges during development or troubleshooting."
+---
+
+finance-dl's interactive mode drops you into a live IPython shell with a fully initialised scraper instance, a real browser window, and direct access to Selenium helpers — all wired together in one command. This page explains how to launch interactive mode, what variables are available in the shell, and common patterns for debugging login flows and multi-factor authentication.
+
+## Launching Interactive Mode
+
+Add the `--interactive` (or `-i`) flag to any `finance_dl.cli` invocation:
+
+```bash
+python -m finance_dl.cli \
+  --config-module finance_dl_config \
+  --config mybank \
+  --interactive
+```
+
+Interactive mode always opens a **visible browser window**. The `--interactive` flag implies `--visible` — you do not need to pass both.
+
+## What's in the Shell
+
+When the shell opens, the namespace is populated with the module's own globals plus a set of context-specific variables injected by the scraper module's `interactive()` context manager.
+
+### For Selenium-based scrapers
+
+Most scrapers use `scrape_lib.interact_with_scraper`, which yields:
+
+| Variable | Type | Description |
+|---|---|---|
+| `scraper` | `scrape_lib.Scraper` | The active scraper instance (same object as `self`) |
+| `self` | `scrape_lib.Scraper` | Alias for `scraper`, matching the scraper's own method signatures |
+| `By` | `selenium.webdriver.common.by.By` | Locator strategy constants (`By.XPATH`, `By.ID`, etc.) |
+| `Select` | `selenium.webdriver.support.ui.Select` | Helper for interacting with `<select>` elements |
+| `Keys` | `selenium.webdriver.common.keys.Keys` | Keyboard key constants (`Keys.RETURN`, `Keys.TAB`, etc.) |
+
+Access the raw WebDriver through `self.driver` to call any Selenium API directly.
+
+### For OFX-based scrapers
+
+The `finance_dl.ofx` module's `interactive()` context yields:
+
+| Variable | Type | Description |
+|---|---|---|
+| `ofx_params` | `dict` | The OFX connection parameters from your config |
+| `output_directory` | `str` | The output path from your config |
+| `inst` | `ofxclient.Institution` | An already-connected Institution object ready for queries |
+
+### Module-level globals
+
+All functions and variables defined at the top level of the scraper module are also available in the shell namespace, so you can call internal helpers directly.
+
+<Note>
+  The shell is launched with `%load_ext autoreload` and `%autoreload 2` already
+  active. Any changes you make to the scraper source file on disk are reloaded
+  automatically before the next statement executes — no need to restart the
+  shell to pick up edits.
+</Note>
+
+## Common Interactive Patterns
+
+### Run the full scraper
+
+For most scrapers, calling `self.run()` executes the complete scraping sequence from inside the shell:
+
+```python
+self.run()
+```
+
+For the Mint scraper, the run function takes explicit arguments:
+
+```python
+run(output_directory=output_directory, profile_dir=profile_dir, credentials=credentials)
+```
+
+### Navigate the browser manually
+
+```python
+# Go to a specific URL
+self.driver.get('https://www.mybank.com/login')
+
+# Get the current page title
+self.driver.title
+```
+
+### Find page elements
+
+```python
+# Find all password inputs on the page
+self.driver.find_elements(By.XPATH, '//input[@type="password"]')
+
+# Find a button by visible text
+self.driver.find_elements(By.XPATH, '//button[contains(text(), "Sign In")]')
+
+# Find an element by ID
+self.driver.find_element(By.ID, 'username')
+```
+
+### Interact with elements
+
+```python
+# Type into an input field
+field = self.driver.find_element(By.ID, 'username')
+field.send_keys('myusername')
+field.send_keys(Keys.TAB)
+
+# Click a button
+self.driver.find_element(By.ID, 'submit-btn').click()
+
+# Select a dropdown option
+from selenium.webdriver.support.ui import Select
+dropdown = Select(self.driver.find_element(By.ID, 'account-type'))
+dropdown.select_by_visible_text('Checking')
+```
+
+### Handle MFA manually
+
+If a scraper stops at an MFA prompt, complete the challenge directly in the visible browser window and then continue the scraping session from the shell:
+
+```python
+# Complete the MFA prompt manually in the browser, then:
+self.run()
+```
+
+<Tip>
+  For scrapers that support a `profile_dir` parameter, set it in your config to
+  a persistent directory. Chrome will save cookies and session data there, so
+  completed MFA sessions survive restarts. On subsequent runs the scraper can
+  resume without re-authenticating:
+
+  ```python
+  # In your CONFIG_ function
+  def CONFIG_mybank():
+      return {
+          'module': 'finance_dl.mybank',
+          'profile_dir': '/home/user/.config/finance-dl/profiles/mybank',
+          # ...
+      }
+  ```
+</Tip>
+
+## Reload Edited Code Without Restarting
+
+Because `%autoreload 2` is active, you can edit a scraper module in your editor and call it again in the same shell session without losing your browser state:
+
+```python
+# Edit finance_dl/mybank.py in your editor, then back in the shell:
+self.run()   # picks up your changes automatically
+```
+
+This makes interactive mode the fastest way to iterate on scraper code — no need to restart Chrome, log in again, or navigate back to the page you were debugging.

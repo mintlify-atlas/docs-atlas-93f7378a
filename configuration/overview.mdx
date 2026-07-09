@@ -1,0 +1,145 @@
+---
+title: "Configuration Module Structure and Options"
+sidebarTitle: "Overview"
+description: "Learn how to write a finance-dl configuration module with CONFIG_ functions. Each function returns a dict specifying module, credentials, and output directory."
+---
+
+finance-dl reads all of its scraping instructions from a plain Python configuration module — a `.py` file you write once and reuse on every run. This page explains the required structure of that module, the naming convention for configuration entries, the common dict keys every scraper understands, and the variable patterns that keep paths tidy across many accounts.
+
+## The Configuration Module
+
+Create a file named `finance_dl_config.py` (or any valid Python module name) in a directory of your choice. Because `sys.path` always includes the current working directory, you can run finance-dl from the same folder as the file without any extra path configuration:
+
+```bash
+python -m finance_dl.cli --config-module finance_dl_config --config vanguard
+```
+
+If you prefer to keep the file elsewhere, ensure its parent directory is on `sys.path` before invoking the CLI.
+
+## CONFIG\_ Functions
+
+Every configuration entry is a top-level function whose name starts with `CONFIG_`. The portion after the prefix is the **configuration name** you pass to `--config`. Each function must return a plain Python `dict` describing what to scrape and where to save the output.
+
+```python
+def CONFIG_amazon():
+    return dict(
+        module='finance_dl.amazon',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'amazon'),
+        profile_dir=os.path.join(profile_dir, 'amazon'),
+    )
+```
+
+Calling `python -m finance_dl.cli --config-module finance_dl_config --config amazon` resolves to `CONFIG_amazon()` and passes the returned dict to the selected scraper module.
+
+## Header: `profile_dir` and `data_dir` Variables
+
+Define two convenience variables near the top of your config file. They keep every `output_directory` and `profile_dir` value consistent and easy to update in one place:
+
+```python
+import os
+
+# Directory for persistent browser profiles.
+profile_dir = os.path.join(os.getenv('HOME'), '.cache', 'finance_dl')
+data_dir = '/path/where/data/will/be/saved'
+```
+
+- **`profile_dir`** — a base directory for Chrome user-data directories. Each scraper that needs a persistent session gets its own subdirectory (e.g., `os.path.join(profile_dir, 'mint')`).
+- **`data_dir`** — the root of your financial data tree. Append an institution-specific subdirectory for each `output_directory`.
+
+## Common Dict Keys
+
+The following keys are recognised by finance-dl itself and passed through to every scraper.
+
+<ParamField path="module" type="string" required>
+  Python module name of the scraper to use (e.g., `'finance_dl.ofx'`, `'finance_dl.amazon'`). This key is consumed by the CLI before the dict is forwarded to the module; the scraper never sees it.
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Local filesystem path where downloaded files will be saved. The directory is created automatically if it does not exist. Use `os.path.join(data_dir, '<institution>')` to keep paths relative to your `data_dir` variable.
+</ParamField>
+
+<ParamField path="credentials" type="dict">
+  A dict containing authentication material for the scraper. Most scrapers expect `username` and `password` keys. Some use different keys — for example, `finance_dl.waveapps` expects `token` and `finance_dl.gemini` expects `api_key`/`api_secret`. Refer to the individual scraper's documentation for the exact keys required.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome user-data directory. When set, Chrome loads and saves cookies, local storage, and cached credentials across runs. This is especially useful for scrapers that use multi-factor authentication, as you only need to complete the MFA challenge once.
+</ParamField>
+
+<ParamField path="headless" type="boolean" default="true">
+  Whether to run Chrome in headless (windowless) mode. Defaults to `True` for all Selenium-based scrapers. Set to `False` for scrapers that require manual interaction (such as `finance_dl.anthem`) or when you want to watch the browser while debugging.
+</ParamField>
+
+## Example: OFX-Based Scraper
+
+OFX scrapers communicate directly with your institution's server using the OFX protocol — no browser is involved. Instead of a `credentials` dict, they take an `ofx_params` dict:
+
+```python
+def CONFIG_vanguard():
+    ofx_params = {
+        'id': '15103',
+        'org': 'Vanguard',
+        'url': 'https://vesnc.vanguard.com/us/OfxDirectConnectServlet',
+        'username': 'XXXXXX',
+        'password': 'XXXXXX',
+    }
+    return dict(
+        module='finance_dl.ofx',
+        ofx_params=ofx_params,
+        output_directory=os.path.join(data_dir, 'vanguard'),
+    )
+```
+
+To look up the correct `id`, `org`, and `url` values for your institution, search the [OFX Home directory](https://www.ofxhome.com/).
+
+## Example: Selenium-Based Scraper
+
+Selenium-based scrapers drive a real Chrome browser to log in and download data. Most accept the standard `credentials`, `output_directory`, `profile_dir`, and `headless` keys:
+
+```python
+def CONFIG_mint():
+    return dict(
+        module='finance_dl.mint',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'mint'),
+        # profile_dir is highly recommended to avoid MFA prompts on every run.
+        profile_dir=os.path.join(profile_dir, 'mint'),
+    )
+```
+
+## Example: Scraper with Non-Standard Credentials
+
+Some scrapers use API tokens instead of a username/password pair:
+
+```python
+def CONFIG_waveapps():
+    return dict(
+        module='finance_dl.waveapps',
+        credentials=dict(
+            token='XXXXXXXX',
+        ),
+        output_directory=os.path.join(data_dir, 'waveapps'),
+    )
+```
+
+## Example: Forcing a Visible Browser
+
+A small number of scrapers — such as `finance_dl.anthem` and `finance_dl.stockplanconnect` — require a visible browser window to complete their login flow reliably. Set `headless=False` in those entries:
+
+```python
+def CONFIG_anthem():
+    return dict(
+        module='finance_dl.anthem',
+        login_url='https://anthem.com',
+        output_directory=os.path.join(data_dir, 'anthem'),
+        profile_dir=os.path.join(profile_dir, 'anthem'),
+        headless=False,
+    )
+```

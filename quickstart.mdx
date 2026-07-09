@@ -1,47 +1,173 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with finance-dl in 5 Minutes"
+sidebarTitle: "Quickstart"
+description: "Create a finance-dl config module, add your first scraper configuration, and run it from the command line to download financial data to a local directory."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+finance-dl is driven entirely by a plain Python configuration module that you write once and reuse across every scrape. This page shows you how to create that config file, add scraper configurations for both an OFX-based source (Vanguard) and a Selenium-based source (Amazon), and invoke the CLI to start downloading data to your local filesystem.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+<Note>
+  finance-dl appends the **current working directory** to `sys.path` at startup, so your config module is found automatically as long as you run the `finance-dl` command (or `python -m finance_dl.cli`) **from the same directory that contains your config file**. No `PYTHONPATH` changes or package installs are needed for the config module itself.
+</Note>
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Create your config module">
+    Create a new Python file named `finance_dl_config.py` in a directory of your choice. This file will hold all of your scraper configurations.
 
-    ```bash
-    npm install your-package
+    Start with the common boilerplate — a directory for saved browser profiles (avoids re-entering MFA codes) and a root data directory for downloaded files:
+
+    ```python
+    # finance_dl_config.py
+    import os
+
+    # Persistent Chrome profile directory — saves session state between runs.
+    profile_dir = os.path.join(os.getenv('HOME'), '.cache', 'finance_dl')
+
+    # Root directory where all downloaded data will be written.
+    data_dir = '/path/where/data/will/be/saved'
     ```
+
+    Replace `/path/where/data/will/be/saved` with an absolute path on your machine, for example `os.path.expanduser('~/finance-data')`.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
+  <Step title="Add an OFX configuration (Vanguard example)">
+    For institutions that support OFX Direct Connect, define a `CONFIG_<name>()` function that returns a dictionary with `module='finance_dl.ofx'` and an `ofx_params` block.
+
+    ```python
+    def CONFIG_vanguard():
+        # To find `id`, `org`, and `url` for your institution,
+        # search at https://www.ofxhome.com/
+        ofx_params = {
+            'id': '15103',
+            'org': 'Vanguard',
+            'url': 'https://vesnc.vanguard.com/us/OfxDirectConnectServlet',
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        }
+        return dict(
+            module='finance_dl.ofx',
+            ofx_params=ofx_params,
+            output_directory=os.path.join(data_dir, 'vanguard'),
+        )
     ```
+
+    OFX scrapers connect directly to the institution's server — no browser or ChromeDriver required. The `output_directory` will be created automatically on first run, and downloaded OFX files are written there atomically.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Add a Selenium configuration (Amazon example)">
+    For institutions without an OFX endpoint, define a `CONFIG_<name>()` function that returns a dictionary pointing to the appropriate Selenium scraper module. Include a `profile_dir` to persist browser session state across runs:
+
+    ```python
+    def CONFIG_amazon():
+        return dict(
+            module='finance_dl.amazon',
+            credentials={
+                'username': 'XXXXXX',
+                'password': 'XXXXXX',
+            },
+            output_directory=os.path.join(data_dir, 'amazon'),
+            # profile_dir is optional but recommended — saves cookies between runs.
+            profile_dir=os.path.join(profile_dir, 'amazon'),
+        )
+    ```
+
+    Selenium scrapers run headless by default. If the first attempt fails (for example, due to an MFA prompt), finance-dl automatically retries with the browser window visible so you can complete the login manually.
+  </Step>
+
+  <Step title="Run a scraper from the command line">
+    Open a terminal, navigate to the directory containing `finance_dl_config.py`, and run:
 
     ```bash
-    your-cli start
+    python -m finance_dl.cli --config-module finance_dl_config --config vanguard
     ```
+
+    Or, if you installed via pip, use the installed entry point:
+
+    ```bash
+    finance-dl --config-module finance_dl_config --config vanguard
+    ```
+
+    finance-dl will:
+    1. Import `finance_dl_config` and call `CONFIG_vanguard()`
+    2. Load the `finance_dl.ofx` module
+    3. Connect to the Vanguard OFX endpoint and download transactions
+    4. Write output files to the `output_directory` you configured
+
+    **Output example:**
+
+    ```
+    2024-01-15 10:23:01 ofx.py:88 [INFO] Connecting to Vanguard OFX endpoint
+    2024-01-15 10:23:03 ofx.py:112 [INFO] Downloaded 47 transactions
+    2024-01-15 10:23:03 ofx.py:145 [INFO] Writing /path/where/data/will/be/saved/vanguard/transactions.ofx
+    ```
+
+    Downloaded files accumulate in the `output_directory`. Existing files are never overwritten — new data is written atomically alongside them.
+  </Step>
+
+  <Step title="Understand the CLI flags">
+    The full set of CLI flags available via `python -m finance_dl.cli`:
+
+    | Flag | Short | Description |
+    |---|---|---|
+    | `--config-module` | | Python module name defining `CONFIG_<name>` functions |
+    | `--config` | `-c` | Name of the configuration to run (calls `CONFIG_<name>()`) |
+    | `--spec` | `-s` | JSON configuration specification as a literal string; mutually exclusive with `--config` |
+    | `--interactive` | `-i` | Launch an IPython shell for manual inspection and debugging |
+    | `--visible` | | Run the browser in a visible window (implied by `--interactive`) |
+    | `--log` | | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` (default: `INFO`) |
+
+    **Using `--spec` instead of `--config`:**
+
+    If you want to run a one-off scrape without a config file, pass the full configuration as a JSON string:
+
+    ```bash
+    finance-dl --spec '{"module": "finance_dl.ofx", "ofx_params": {...}, "output_directory": "/tmp/test"}'
+    ```
+
+    `--config` and `--spec` are mutually exclusive — you must use one or the other.
+  </Step>
+
+  <Step title="Debug with interactive mode">
+    When a scraper fails or you want to explore its internals, add the `-i` flag to drop into an IPython shell after the browser has launched:
+
+    ```bash
+    python -m finance_dl.cli --config-module finance_dl_config --config amazon -i
+    ```
+
+    Interactive mode:
+    - Forces the browser to run **visibly** (not headless), so you can watch and interact with the Chrome window
+    - Opens an IPython shell with the scraper module's namespace loaded, giving you direct access to all scraper functions and the live browser session
+    - Enables `%autoreload` so edits to your scraper code take effect without restarting
+
+    This is the recommended workflow for diagnosing login failures, MFA prompts, or site layout changes.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Tips for Credentials Management
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Hard-coding usernames and passwords in your config file works but is not recommended for sensitive accounts. Instead, prompt at runtime or pull from a password manager:
+
+```python
+from getpass import getpass
+
+def CONFIG_paypal():
+    return dict(
+        module='finance_dl.paypal',
+        credentials={
+            'username': input('PayPal username: '),
+            'password': getpass('PayPal password: '),
+        },
+        output_directory=os.path.join(data_dir, 'paypal'),
+    )
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Introduction" icon="book-open" href="/introduction">
+    Learn about all 18+ supported data sources and how finance-dl's two scraping mechanisms work.
+  </Card>
+  <Card title="Installation" icon="wrench" href="/installation">
+    Review ChromeDriver setup and version-matching requirements for Selenium scrapers.
+  </Card>
+</CardGroup>

@@ -1,0 +1,68 @@
+---
+title: "Download Google Purchases History from Gmail"
+sidebarTitle: "Google Purchases"
+description: "Scrape purchases that Google extracted from Gmail using finance_dl.google_purchases. Downloads order detail HTML and JSON files in Google Takeout format."
+---
+
+The `finance_dl.google_purchases` scraper retrieves the purchase and reservation history that Google heuristically extracts from your Gmail messages. It uses `selenium` and `chromedriver` to drive the Google Takeout and Google Purchases/Reservations websites, then saves each purchase as both a raw HTML file and a structured JSON file that mirrors the Google Takeout export format.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Google account login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Google account email address.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Google account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where output files will be written. The directory is created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory used exclusively for this scraper. Do not point this at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+
+  <Note>
+    Using a persistent `profile_dir` is recommended to avoid repeated Google sign-in challenges, which may require manual two-factor authentication on each run.
+  </Note>
+</ParamField>
+
+## Output Format
+
+Two files are written to `output_directory` for each purchase:
+
+| File | Description |
+|---|---|
+| `<id>.html` | Raw HTML content of the order details page as rendered by Google. |
+| `order_<id>.json` | Structured JSON representation of the purchase in Google Takeout Purchases/Reservations format. |
+
+## Config Example
+
+```python
+def CONFIG_google_purchases():
+    return dict(
+        module='finance_dl.google_purchases',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'google_purchases'),
+        # profile_dir is optional.
+        profile_dir=os.path.join(profile_dir, 'google_purchases'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper with:
+
+```python
+self.run()
+```

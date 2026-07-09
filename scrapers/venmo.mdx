@@ -1,0 +1,89 @@
+---
+title: "Download Your Venmo Transactions and Account Balances"
+sidebarTitle: "Venmo"
+description: "Scrape Venmo transaction history and account balances using finance_dl.venmo. Data is merged into CSV files with duplicate detection."
+---
+
+The `finance_dl.venmo` scraper uses `selenium` and `chromedriver` to log into the Venmo website and download your transaction history and account balance data. Newly retrieved records are merged into persistent CSV files in your output directory — existing entries are never overwritten, and duplicates are automatically detected and excluded. This page covers all configuration parameters, the output CSV formats, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Venmo login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Venmo account username.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Venmo account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where output files will be written. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+
+  <Note>
+    It is **highly recommended** to set `profile_dir`. Without it, Venmo's multi-factor authentication prompt will appear on every run, requiring manual intervention each time.
+  </Note>
+</ParamField>
+
+<ParamField path="earliest_history_date" type="datetime.date">
+  The earliest UTC date for which to retrieve transaction data. When specified, `max_history_days` has no effect.
+</ParamField>
+
+<ParamField path="max_history_days" type="int" default="1460">
+  Number of days of history to retrieve, counting back from the previous UTC day. Only used when `earliest_history_date` is not specified. Defaults to `365 * 4` (approximately four years).
+</ParamField>
+
+## Output Format
+
+The scraper writes two CSV files to `output_directory`. New data is merged in on each run — existing records are preserved and duplicates are not introduced.
+
+### `transactions.csv`
+
+Transaction history in the same format as Venmo's own CSV export. Columns:
+
+```
+" ID","Datetime","Type","Status","Note","From","To","Amount (total)","Amount (fee)","Funding Source","Destination"
+```
+
+### `balances.csv`
+
+Account balance history scraped from the Venmo HTML interface. Columns:
+
+```
+"Start Date","End Date","Start Balance","End Balance"
+```
+
+## Config Example
+
+```python
+def CONFIG_venmo():
+    return dict(
+        module='finance_dl.venmo',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'venmo'),
+
+        # profile_dir is optional but highly recommended to avoid having to
+        # enter multi-factor authentication code each time.
+        profile_dir=os.path.join(profile_dir, 'venmo'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper by running:
+
+```python
+self.run()
+```

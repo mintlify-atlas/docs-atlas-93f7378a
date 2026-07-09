@@ -1,0 +1,67 @@
+---
+title: "Download Comcast/Xfinity PDF Bills Automatically"
+sidebarTitle: "Comcast"
+description: "Scrape Comcast (Xfinity) monthly bill PDFs using finance_dl.comcast. Bills are named by bill date and parseable with pdftotext for automated accounting."
+---
+
+The `finance_dl.comcast` scraper downloads Comcast (Xfinity) monthly bills as PDF files using `selenium` and `chromedriver`. Each bill is saved with a filename derived from its bill date for easy sorting and archiving. Like other utility bill scrapers in finance-dl, the downloaded PDFs are text-based and can be processed with `pdftotext` to extract data for automated accounting pipelines.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Comcast (Xfinity) account login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Comcast/Xfinity account username.
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Comcast/Xfinity account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where PDF bill files will be saved. The directory is created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory used exclusively for this scraper. Do not point this at your regular browser profile. When omitted, a fresh temporary profile is used on every run.
+</ParamField>
+
+## Output Format
+
+Each bill is saved to `output_directory` as a PDF file named by its bill date:
+
+```
+YYYY-MM-DD.bill.pdf
+```
+
+For example, a bill with a bill date of November 28, 2017 is saved as `2017-11-28.bill.pdf`.
+
+<Tip>
+  Comcast bills are text-based PDFs. Run `pdftotext 2017-11-28.bill.pdf` to extract plain-text content for parsing with beancount-import or similar tools.
+</Tip>
+
+## Config Example
+
+```python
+def CONFIG_comcast():
+    return dict(
+        module='finance_dl.comcast',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'comcast'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper with:
+
+```python
+self.run()
+```

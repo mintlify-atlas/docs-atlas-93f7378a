@@ -1,0 +1,66 @@
+---
+title: "Download PayPal Transaction History and Invoice Files"
+sidebarTitle: "PayPal"
+description: "Scrape PayPal transaction history and invoice PDFs using finance_dl.paypal. Each transaction is saved as JSON and HTML; invoices as PDF and JSON."
+---
+
+The `finance_dl.paypal` scraper uses `selenium` and `chromedriver` to log into [paypal.com](https://www.paypal.com) and download your full activity history. Each transaction is saved as both a JSON file (containing the raw data returned by the PayPal server) and an HTML file. For invoice-type transactions, a PDF and a separate invoice JSON file are saved instead. This page covers all configuration parameters, the per-transaction output file naming scheme, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your PayPal login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your PayPal account username (typically your email address).
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your PayPal account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where output files will be written. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+</ParamField>
+
+## Output Format
+
+All files are written directly into `output_directory`. The file naming depends on the transaction type:
+
+| Transaction type | Files written |
+|---|---|
+| Standard transaction | `<id>.json` — raw JSON from the PayPal server |
+| Standard transaction | `<id>.html` — HTML representation of the transaction |
+| Invoice | `<id>.pdf` — the invoice PDF |
+| Invoice | `<id>.invoice.json` — invoice metadata as JSON |
+
+`<id>` is the unique PayPal transaction identifier. Already-downloaded transactions are skipped on subsequent runs.
+
+## Config Example
+
+```python
+def CONFIG_paypal():
+    return dict(
+        module='finance_dl.paypal',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'paypal'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper by running:
+
+```python
+self.run()
+```

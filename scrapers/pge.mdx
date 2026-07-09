@@ -1,0 +1,71 @@
+---
+title: "Download Pacific Gas & Electric PDF Bills"
+sidebarTitle: "PG&E"
+description: "Scrape PG&E electricity and gas bills as PDF files using finance_dl.pge. Bills are named by statement date and can be parsed with pdftotext for accounting."
+---
+
+The `finance_dl.pge` scraper downloads Pacific Gas and Electric (PG&E) monthly bills as PDF files using `selenium` and `chromedriver`. Each bill is saved with a filename derived from its statement date, making it straightforward to sort and archive your utility history. The PDFs are text-based and can be processed with `pdftotext` to extract line items for use with beancount-import or other accounting tools.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your PG&E online account login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your PG&E account username (typically your email address).
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your PG&E account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where PDF bill files will be saved. The directory is created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="stop_early" type="bool" default="True">
+  When `True`, the scraper stops after it encounters the most recent bill that is already present in `output_directory`. This allows incremental runs to complete quickly without re-downloading the full history.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory used exclusively for this scraper. Do not point this at your regular browser profile. When omitted, a fresh temporary profile is used on every run.
+</ParamField>
+
+## Output Format
+
+Each bill is saved to `output_directory` as a PDF file named by its statement date:
+
+```
+YYYY-MM-DD.bill.pdf
+```
+
+For example, a bill with a statement date of November 28, 2017 is saved as `2017-11-28.bill.pdf`.
+
+<Tip>
+  PG&E bills are text-based PDFs. Run `pdftotext 2017-11-28.bill.pdf` to extract the plain-text content for parsing with beancount-import or similar tools.
+</Tip>
+
+## Config Example
+
+```python
+def CONFIG_pge():
+    return dict(
+        module='finance_dl.pge',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'pge'),
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper with:
+
+```python
+self.run()
+```

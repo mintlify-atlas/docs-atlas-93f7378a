@@ -1,0 +1,86 @@
+---
+title: "Download HealthEquity HSA Transactions and Balances"
+sidebarTitle: "HealthEquity"
+description: "Scrape HealthEquity HSA transaction history, investment transactions, and balance snapshots using finance_dl.healthequity. Saves multiple CSV files per account."
+---
+
+The `finance_dl.healthequity` scraper downloads cash transaction history (contributions, distributions, and other cash activity), investment transaction history, and a snapshot of current investment holdings from [HealthEquity](https://www.healthequity.com), a health savings account (HSA) administrator. It uses Selenium and ChromeDriver to log in and navigate the HealthEquity web interface, exporting each data type to a separate CSV file.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dict containing your HealthEquity login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your HealthEquity account username.
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      Your HealthEquity account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path to the local directory where downloaded CSV files will be written. The directory will be created if it does not exist. For compatibility with beancount-import, **the last path component should be your HealthEquity account number** (e.g. `'1234567'`). See the note below.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory dedicated to this configuration. Using a persistent profile is highly recommended for HealthEquity: it preserves the browser session between runs so you do not need to manually enter a multi-factor authentication (MFA) code every time the scraper runs. Must not refer to your normal browser profile.
+</ParamField>
+
+## Output Format
+
+All files are written directly into `output_directory`. The scraper produces five distinct file types on each run:
+
+| File | Contents | Fields |
+|---|---|---|
+| `cash-transactions-contribution.csv` | Contribution cash transactions | `"Date","Transaction","Amount","Cash Balance"` |
+| `cash-transactions-distribution.csv` | Distribution cash transactions | `"Date","Transaction","Amount","Cash Balance"` |
+| `cash-transactions-other.csv` | All other cash transactions | `"Date","Transaction","Amount","Cash Balance"` |
+| `investment-transactions.csv` | Investment fund transactions | `"Date","Fund","Category","Description","Price","Amount","Shares","Total Shares","Total Value"` |
+| `YYYY-MM-ddTHHMMSSZZZZ.balances.csv` | Investment holdings snapshot | Current fund holdings as of scraper run time |
+
+The balance snapshot filename encodes the exact date and time the scraper was run (e.g. `2025-01-15T143022-0500.balances.csv`), so each run appends a new snapshot without overwriting previous ones.
+
+<Note>
+  For compatibility with [beancount-import](https://github.com/jbms/beancount-import), the last component of `output_directory` should be your HealthEquity account number (e.g. `'1234567'`). This allows beancount-import to correctly identify the account when parsing the CSV files.
+</Note>
+
+## Configuration Example
+
+```python
+import os
+
+data_dir = os.path.expanduser('~/financial-data')
+profile_dir = os.path.expanduser('~/chrome-profiles')
+
+def CONFIG_healthequity():
+    return dict(
+        module='finance_dl.healthequity',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        # Use your HealthEquity account number as the last directory component.
+        output_directory=os.path.join(data_dir, 'healthequity', '1234567'),
+
+        # profile_dir is optional but highly recommended to avoid having to
+        # enter a multi-factor authentication code each time.
+        profile_dir=os.path.join(profile_dir, 'healthequity'),
+    )
+```
+
+<Tip>
+  Always set `profile_dir` for HealthEquity. Without a persistent profile, every run triggers a fresh login session, which will prompt you for an MFA code via text message or email.
+</Tip>
+
+## Interactive Shell
+
+To run the HealthEquity scraper from the interactive shell:
+
+```python
+self.run()
+```
+
+This starts the full scraper flow: logging in, downloading all cash transaction types, investment transactions, and a current holdings snapshot.

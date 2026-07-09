@@ -1,0 +1,92 @@
+---
+title: "Download Morgan Stanley StockPlanConnect Documents"
+sidebarTitle: "StockPlanConnect"
+description: "Download release and trade confirmation PDFs from Morgan Stanley StockPlanConnect using finance_dl.stockplanconnect. Requires non-headless Chrome."
+---
+
+The `finance_dl.stockplanconnect` scraper downloads PDF documents — including restricted stock unit release confirmations, trade confirmations, and tax documents — from [stockplanconnect.com](https://www.stockplanconnect.com), Morgan Stanley's equity compensation platform. It uses Selenium and ChromeDriver to navigate the site, enumerate all available documents, and save each one locally as a PDF file with a structured filename.
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dict containing your StockPlanConnect login credentials.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your StockPlanConnect (Morgan Stanley) username.
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      Your StockPlanConnect (Morgan Stanley) password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path to the local directory where downloaded PDF documents will be saved. The directory will be created if it does not exist.
+</ParamField>
+
+<ParamField path="headless" type="bool" default="False">
+  Must be set to `False`. This scraper does not work correctly in headless mode. See the warning below.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. Using a dedicated persistent profile lets Chrome remember session cookies and can reduce how often you need to complete login steps. Must not refer to your normal browser profile.
+</ParamField>
+
+## Output Format
+
+Each document is saved to `output_directory` with a filename that encodes the document date, category, document type, and document name:
+
+```
+<output_directory>/
+  2017-02-09.Restricted_Units.Trade_Confirmations.Confirmation.pdf
+  2017-08-30.Restricted_Units.Trade_Confirmations.Release_Confirmation.pdf
+  2017-12-31.Other.Tax_Documents.Form_1099.pdf
+```
+
+If multiple documents of the same type exist on the same date, a numeric suffix (starting from `.2`) is appended to distinguish them:
+
+```
+2018-05-31.Restricted_Units.Trade_Confirmations.Release_Confirmation.pdf
+2018-06-28.Restricted_Units.Trade_Confirmations.Release_Confirmation.2.pdf
+2018-06-28.Restricted_Units.Trade_Confirmations.Release_Confirmation.3.pdf
+```
+
+<Note>
+  If you need to manually download documents and place them in the output directory, follow the same numbering scheme: the first document for a given date, type, and name has no numeric suffix; the second gets `.2`; the third gets `.3`; and so on.
+</Note>
+
+The PDF documents can be parsed for their text content using the `pdftotext` utility, and are designed to be consumed by beancount-import importers.
+
+## Configuration Example
+
+<Warning>
+  `headless=False` is **required** for this scraper. The StockPlanConnect site relies on browser behavior that is incompatible with headless Chrome. The scraper will not function correctly if `headless` is omitted or set to `True`.
+</Warning>
+
+```python
+import os
+
+data_dir = os.path.expanduser('~/financial-data')
+
+def CONFIG_stockplanconnect():
+    return dict(
+        module='finance_dl.stockplanconnect',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'stockplanconnect'),
+        headless=False,
+    )
+```
+
+## Interactive Shell
+
+To run the StockPlanConnect scraper from the interactive shell:
+
+```python
+self.run()
+```
+
+This starts the full scraper flow, logging into the site and downloading all documents that have not already been saved to `output_directory`.

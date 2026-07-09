@@ -1,0 +1,89 @@
+---
+title: "Download Google Payroll Statements from Ultipro"
+sidebarTitle: "Ultipro"
+description: "Download Google employee payroll statements as PDFs from Ultipro using finance_dl.ultipro_google. Requires manual interaction and non-headless Chrome for reliability."
+---
+
+The `finance_dl.ultipro_google` scraper retrieves Google employee payroll statements in PDF format from the [Ultipro](https://googlemypay.ultipro.com) portal using `selenium` and `chromedriver`. This page covers all configuration parameters, the output file naming convention, a ready-to-use config example, and how to invoke the scraper from the interactive shell.
+
+<Note>
+  This module is specifically designed for Google's Ultipro setup at `googlemypay.ultipro.com` and uses Google's OAuth login flow. It is not a generic Ultipro scraper and will not work for other organizations without modification.
+</Note>
+
+## Configuration Parameters
+
+<ParamField path="credentials" type="dict" required>
+  A dictionary containing your Google account login credentials used to authenticate with the Ultipro portal.
+
+  <Expandable title="credentials fields">
+    <ParamField path="username" type="string" required>
+      Your Google account username (your `@google.com` email address).
+    </ParamField>
+
+    <ParamField path="password" type="string" required>
+      Your Google account password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="output_directory" type="string" required>
+  Path on the local filesystem where downloaded PDF payroll statements will be saved. The directory will be created automatically if it does not already exist.
+</ParamField>
+
+<ParamField path="profile_dir" type="string">
+  Path to a persistent Chrome browser profile directory. This must be a path used exclusively for this scraper configuration — do not point it at your regular browser profile. When omitted, a fresh temporary profile is created on every run.
+</ParamField>
+
+<ParamField path="dir_per_year" type="bool">
+  When `True`, payroll statement PDFs are organized into per-year subdirectories under `output_directory` (e.g., `output_directory/2024/`). When omitted or `False`, all PDFs are written directly into `output_directory`.
+</ParamField>
+
+<ParamField path="headless" type="bool" default="True">
+  Controls whether Chrome runs in headless mode. Defaults to `True`, but setting this to `False` is recommended for more reliable scraping — see the tip below.
+
+  <Tip>
+    Set `headless=False` for greater reliability. The Ultipro scraper can encounter timing and rendering issues in headless mode. Running with a visible browser window (as shown in the example config) significantly reduces failed or incomplete downloads.
+  </Tip>
+</ParamField>
+
+## Output Format
+
+Each payroll statement is saved as a PDF file in `output_directory` (or a per-year subdirectory if `dir_per_year=True`). Files are named using the following pattern:
+
+```
+%Y-%m-%d.statement-<id>.pdf
+```
+
+Where `%Y-%m-%d` is the pay date and `<id>` is the document number from the **Pay History** list on the Ultipro portal. The scraper skips statements that have already been downloaded, making subsequent runs fast and incremental.
+
+<Note>
+  In some cases, due to a bug in the Ultipro portal, the document number shown in the Pay History list may differ from the document number printed inside the actual PDF. These discrepancies are handled downstream by the `beancount_import.source.ultipro_google` module.
+</Note>
+
+## Config Example
+
+```python
+def CONFIG_google_payroll():
+    return dict(
+        module='finance_dl.ultipro_google',
+        credentials={
+            'username': 'XXXXXX',
+            'password': 'XXXXXX',
+        },
+        output_directory=os.path.join(data_dir, 'documents', 'Income', 'Google'),
+
+        # profile_dir is optional but recommended.
+        profile_dir=os.path.join(profile_dir, 'google_payroll'),
+
+        # Recommended for greater reliability.
+        headless=False,
+    )
+```
+
+## Interactive Shell
+
+From the finance-dl interactive shell, start the scraper by calling:
+
+```python
+self.run()
+```
